@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block title %}Network Scanner - Device Monitoring{% endblock %}
+{% block extra_css %}
+<style>
+    /* Scanning Page - Tactical Theme Overrides */
+    .scan-header {
+        margin-bottom: 2rem;
+    }
+
+    .scan-header h3 {
+        font-family: 'Orbitron', monospace;
+        color: var(--tactical-accent-bright);
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Scan Input Group */
+    .scan-input-group {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .scan-input-group .input-wrapper {
+        flex: 1;
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .scan-input-group .tactical-input {
+        flex: 1;
+    }
+
+    /* Progress Bar Enhancements */
+    .tactical-progress {
+        height: 24px;
+        margin-bottom: 1.5rem;
+        background: var(--tactical-bg-elevated);
+        border-radius: var(--tactical-radius-sm);
+        overflow: hidden;
+    }
+
+    .tactical-progress .progress-bar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--tactical-bg-darkest);
+        background: var(--tactical-accent);
+        border-radius: var(--tactical-radius-sm);
+    }
+
+    /* Scan Results Area */
+    .device-added {
+        background-color: rgba(25, 135, 84, 0.25) !important;
+        border-left: 3px solid #198754;
+    }
+
+    .device-added td {
+        color: #e0e0e0 !important;
+    }
+
+    .scan-results-table {
+        margin-top: 1rem;
+    }
+
+    /* Action Buttons for Results */
+    .result-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .result-actions .tactical-btn-sm {
+        padding: 0.35rem 0.75rem;
+        font-size: 0.75rem;
+    }
+
+    /* Empty State */
+    .empty-scan-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--tactical-text-muted);
+    }
+
+    .empty-scan-state i {
+        font-size: 3rem;
+        color: var(--tactical-accent-dim);
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    /* Port Scan Modal Enhancements */
+    #portScanModal .modal-body {
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+
+    .port-result-item {
+        padding: 0.75rem 1rem;
+        background: var(--tactical-bg-dark);
+        border-left: 3px solid var(--tactical-accent);
+        margin-bottom: 0.5rem;
+        border-radius: var(--tactical-radius-sm);
+    }
+
+    .port-result-item.closed {
+        border-left-color: var(--tactical-text-dim);
+        opacity: 0.6;
+    }
+
+    /* Scan Statistics */
+    .scan-stats {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+    }
+
+    .scan-stat-item {
+        flex: 1;
+        min-width: 150px;
+        padding: 1rem;
+        background: var(--tactical-bg-surface);
+        border-left: 3px solid var(--tactical-accent);
+        border-radius: var(--tactical-radius-sm);
+    }
+
+    .scan-stat-item .stat-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--tactical-accent-bright);
+        font-family: 'Orbitron', monospace;
+    }
+
+    .scan-stat-item .stat-label {
+        font-size: 0.75rem;
+        color: var(--tactical-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="tactical-card">
+                <div class="card-header">
+                    <h4><i class="fas fa-radar"></i> Network Scanner</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="ipRange" placeholder="e.g., 192.168.1.0/24">
+                                <button class="btn btn-outline-secondary" type="button" id="getLocalRange">
+                                    <i class="fas fa-home"></i> Get Local Range
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-primary w-100" id="startScan">
+                                <i class="fas fa-play"></i> Start Network Scan
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="tactical-progress" style="display: none;" id="scanProgress">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar"
+                                    style="width: 0%">0%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-12">
+                            <!-- Bulk Actions Area (Hidden by default) -->
+                            <div id="bulkActions" style="display: none;"
+                                class="mb-3 p-2 bg-dark rounded border border-secondary d-flex align-items-center justify-content-between">
+                                <div>
+                                    <span class="text-white me-2"><i class="fas fa-check-square"></i> <span
+                                            id="selectedCount">0</span> devices selected</span>
+                                </div>
+                                <div>
+                                    <button class="btn btn-success btn-sm me-2" id="bulkAddBtn">
+                                        <i class="fas fa-plus-circle"></i> Add Selected to Inventory
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="scanResults">
+                                <!-- Results will be displayed here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Port Scan Modal -->
+<div class="modal fade" id="portScanModal" tabindex="-1" aria-labelledby="portScanModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="portScanModalLabel"><i class="fas fa-network-wired"></i> Port Scan Results
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="portScanResults">
+                <!-- Port scan results will be displayed here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/scanning.js') }}"></script>
+{% endblock %}

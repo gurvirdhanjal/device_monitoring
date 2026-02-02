@@ -1,0 +1,263 @@
+from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify
+from extensions import db
+from services.network_scanner import NetworkScanner
+
+devices_bp = Blueprint('devices_bp', __name__, url_prefix='')
+scanner = NetworkScanner()
+
+@devices_bp.route('/devices')
+def device_management():
+    if 'logged_in' not in session:
+        return redirect(url_for('auth_bp.login'))
+    
+    from models.device import Device
+    devices = Device.query.all()
+    print(f"DEBUG: Found {len(devices)} devices in database")  # Debug line
+    
+    device = None
+    
+    prefill_data = None
+    if request.args.get('prefill') == 'true':
+        prefill_data = {
+            'device_ip': request.args.get('ip'),
+            'hostname': request.args.get('hostname'),
+            'macaddress': request.args.get('mac')
+        }
+
+    if 'edit_id' in request.args:
+        device = Device.query.get(request.args.get('edit_id'))
+        print(f"DEBUG: Editing device {device}")  # Debug line
+
+    if 'delete_id' in request.args:
+        device = Device.query.get(request.args.get('delete_id'))
+        if device:
+            db.session.delete(device)
+            db.session.commit()
+            print(f"DEBUG: Deleted device {device.device_id}")  # Debug line
+        return redirect(url_for('devices_bp.device_management'))
+
+    return render_template('devices.html', devices=devices, device=device, prefill_data=prefill_data)
+
+
+@devices_bp.route('/devices/save', methods=['POST'])
+def save_device():
+    if 'logged_in' not in session:
+        return redirect(url_for('auth_bp.login'))
+    
+    try:
+        from models.device import Device
+        device_id = request.form.get('device_id')
+        device_name = request.form['device_name']
+        device_ip = request.form['device_ip']
+        device_type = request.form['device_type']
+        port = request.form.get('port', '')
+        username = request.form.get('username', '')
+        password = request.form.get('password', '')
+        rstplink = request.form.get('rstplink', '')
+        is_monitored = request.form.get('is_monitored') == 'on'
+
+        # Generator Smart RTSP link based on brand if not provided
+        if not rstplink and username and password and port and device_type == 'camera':
+            encoded_password = password.replace('@', '%40').replace('#', '%23')
+            brand = request.form.get('brand', '').lower()
+            
+            if brand == 'hikvision':
+                rstplink = f"rtsp://{username}:{encoded_password}@{device_ip}:{port}/Streaming/Channels/101"
+            elif brand == 'dahua':
+                rstplink = f"rtsp://{username}:{encoded_password}@{device_ip}:{port}/cam/realmonitor?channel=1&subtype=0"
+            elif brand == 'axis':
+                rstplink = f"rtsp://{username}:{encoded_password}@{device_ip}:{port}/axis-media/media.amp"
+            elif brand == 'uniview':
+                rstplink = f"rtsp://{username}:{encoded_password}@{device_ip}:{port}/unicast/c1/s0/live"
+            else:
+                # Generic fallback
+                rstplink = f"rtsp://{username}:{encoded_password}@{device_ip}:{port}/stream"
+
+        # Get network information
+        import asyncio
+        status, latency = asyncio.run(scanner.ping_device(device_ip))
+        
+        if status == "Online":
+            mac_address = scanner.get_mac_address(device_ip)
+            hostname = scanner.get_hostname(device_ip)
+            manufacturer = scanner.get_manufacturer(mac_address)
+        else:
+            mac_address = request.form.get('macaddress', 'N/A')
+            hostname = request.form.get('hostname', 'Unknown')
+            manufacturer = "Unknown"
+
+        if device_id:
+            # Update existing device
+            device = Device.query.get(device_id)
+            device.device_name = device_name
+            device.device_ip = device_ip
+            device.device_type = device_type
+            device.port = port
+            device.rstplink = rstplink
+            device.macaddress = mac_address
+            device.hostname = hostname
+            device.manufacturer = manufacturer
+            device.is_monitored = is_monitored
+        else:
+            # Create new device
+            device = Device(
+                device_name=device_name,
+                device_ip=device_ip,
+                device_type=device_type,
+                port=port,
+                rstplink=rstplink,
+                macaddress=mac_address,
+                hostname=hostname,
+                manufacturer=manufacturer,
+                is_monitored=is_monitored
+                
+            )
+            db.session.add(device)
+        
+        db.session.commit()
+        return redirect(url_for('devices_bp.device_management'))
+    
+    except Exception as e:
+        from models.device import Device
+        devices = Device.query.all()
+        return render_template('devices.html', devices=devices, error=f"Error saving device: {str(e)}")
+
+@devices_bp.route('/api/devices')
+def api_devices():
+    if 'logged_in' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    from models.device import Device
+    devices = Device.query.all()
+    return jsonify([device.to_dict() for device in devices])
+
+@devices_bp.route('/api/devices/<int:device_id>')
+def api_device_detail(device_id):
+    if 'logged_in' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    from models.device import Device
+    device = Device.query.get(device_id)
+    if device:
+        return jsonify(device.to_dict())
+    else:
+        return jsonify({'error': 'Device not found'}), 404
+
+@devices_bp.route('/api/devices/<int:device_id>/toggle_monitoring', methods=['POST'])
+def toggle_device_monitoring(device_id):
+    if 'logged_in' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    from models.device import Device
+    device = Device.query.get(device_id)
+    if device:
+        device.is_monitored = not device.is_monitored
+        db.session.commit()
+        return jsonify({'success': True, 'is_monitored': device.is_monitored})
+    else:
+        return jsonify({'error': 'Device not found'}), 404
+
+@devices_bp.route('/api/devices/bulk_add', methods=['POST'])
+def bulk_add_devices():
+    if 'logged_in' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    try:
+        from models.device import Device
+        
+        devices_data = request.get_json()
+        if not devices_data or not isinstance(devices_data, list):
+             return jsonify({'error': 'Invalid data format. Expected a list of devices.'}), 400
+
+        added_count = 0
+        skipped_count = 0
+        errors = []
+
+        for data in devices_data:
+            ip_address = data.get('ip', '').strip()
+            hostname = data.get('hostname', 'Unknown').strip()
+            mac_address = data.get('mac', 'N/A').strip()
+            manufacturer = data.get('manufacturer', 'Unknown').strip()
+            
+            if not ip_address:
+                continue
+
+            # Check if exists (by IP or MAC if MAC is valid)
+            existing = Device.query.filter_by(device_ip=ip_address).first()
+            
+            # Also check by MAC if we have one
+            if not existing and mac_address and mac_address != 'N/A':
+                 existing = Device.query.filter_by(macaddress=mac_address).first()
+
+            if existing:
+                skipped_count += 1
+                continue
+            
+            try:
+                device = Device(
+                    device_name=hostname if hostname != 'Unknown' else f"Device-{ip_address}",
+                    device_ip=ip_address,
+                    device_type='Network Device',
+                    macaddress=mac_address,
+                    hostname=hostname,
+                    manufacturer=manufacturer,
+                    is_monitored=False, # Default to not monitored
+                    is_active=True
+                )
+                db.session.add(device)
+                added_count += 1
+            except Exception as item_error:
+                errors.append(f"Error adding {ip_address}: {str(item_error)}")
+
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'added': added_count,
+            'skipped': skipped_count,
+            'errors': errors
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@devices_bp.route('/api/devices/bulk_delete', methods=['POST'])
+def bulk_delete_devices():
+    if 'logged_in' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    try:
+        from models.device import Device
+        
+        data = request.get_json()
+        if not data or 'device_ids' not in data:
+             return jsonify({'error': 'Invalid data. Expected device_ids list.'}), 400
+        
+        device_ids = data['device_ids']
+        if not isinstance(device_ids, list):
+             return jsonify({'error': 'device_ids must be a list'}), 400
+
+        deleted_count = 0
+        errors = []
+        
+        for dev_id in device_ids:
+            try:
+                device = Device.query.get(dev_id)
+                if device:
+                    db.session.delete(device)
+                    deleted_count += 1
+            except Exception as e:
+                errors.append(f"Error deleting ID {dev_id}: {str(e)}")
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'deleted': deleted_count,
+            'errors': errors
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500

@@ -1,0 +1,541 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Device Monitoring{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Dashboard-specific tactical styles */
+    .dashboard-header h1 {
+        font-family: 'Orbitron', monospace;
+        font-size: 2rem;
+        font-weight: 700;
+        letter-spacing: 2px;
+        margin-bottom: 0.5rem;
+        background: linear-gradient(90deg, #00ffc8, #00d4aa);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .dashboard-header h1 i {
+        color: #00d4aa;
+        margin-right: 0.75rem;
+        -webkit-text-fill-color: #00d4aa;
+    }
+
+    .dashboard-header .lead {
+        color: #6a6a80;
+        font-size: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    /* Tactical Stat Cards */
+    .stat-card {
+        background: linear-gradient(145deg, #1e1e2a 0%, #252532 100%);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 0.75rem;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    .stat-card.primary::before {
+        background: #00d4aa;
+    }
+
+    .stat-card.success::before {
+        background: #00ff88;
+    }
+
+    .stat-card.warning::before {
+        background: #ffaa00;
+    }
+
+    .stat-card.info::before {
+        background: #00aaff;
+    }
+
+    .stat-card:hover.primary {
+        box-shadow: 0 8px 30px rgba(0, 212, 170, 0.2);
+    }
+
+    .stat-card:hover.success {
+        box-shadow: 0 8px 30px rgba(0, 255, 136, 0.2);
+    }
+
+    .stat-card:hover.warning {
+        box-shadow: 0 8px 30px rgba(255, 170, 0, 0.2);
+    }
+
+    .stat-card:hover.info {
+        box-shadow: 0 8px 30px rgba(0, 170, 255, 0.2);
+    }
+
+    .stat-value {
+        font-family: 'Orbitron', monospace;
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-card.primary .stat-value {
+        color: #00ffc8;
+    }
+
+    .stat-card.success .stat-value {
+        color: #00ff88;
+    }
+
+    .stat-card.warning .stat-value {
+        color: #ffaa00;
+    }
+
+    .stat-card.info .stat-value {
+        color: #00aaff;
+    }
+
+    .stat-label {
+        color: #6a6a80;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
+    }
+
+    .stat-icon {
+        font-size: 2rem;
+        opacity: 0.3;
+    }
+
+    .stat-card.primary .stat-icon {
+        color: #00d4aa;
+    }
+
+    .stat-card.success .stat-icon {
+        color: #00ff88;
+    }
+
+    .stat-card.warning .stat-icon {
+        color: #ffaa00;
+    }
+
+    .stat-card.info .stat-icon {
+        color: #00aaff;
+    }
+
+    /* Chart Card */
+    .chart-container {
+        position: relative;
+        height: 250px;
+    }
+
+    /* Quick Actions */
+    .action-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.25rem 1rem;
+        margin-bottom: 0.75rem;
+        background: rgba(0, 212, 170, 0.05);
+        border: 1px solid rgba(0, 212, 170, 0.2);
+        border-radius: 8px;
+        color: #b8b8c8;
+        text-decoration: none;
+        text-transform: uppercase;
+        font-weight: 600;
+        font-size: 0.85rem;
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+    }
+
+    .action-btn:hover {
+        background: rgba(0, 212, 170, 0.1);
+        border-color: #00d4aa;
+        color: #00ffc8;
+        transform: translateX(5px);
+    }
+
+    .action-btn i {
+        color: #00d4aa;
+        font-size: 1.1rem;
+        width: 24px;
+    }
+
+    /* Activity Items */
+    .activity-item {
+        padding: 0.75rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        transition: all 0.2s ease;
+    }
+
+    .activity-item:hover {
+        background: rgba(0, 212, 170, 0.05);
+    }
+
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+
+    .activity-device {
+        color: #ffffff;
+        font-weight: 600;
+    }
+
+    .activity-details {
+        color: #6a6a80;
+        font-size: 0.85rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row dashboard-header">
+    <div class="col-md-12">
+        <h1><i class="fas fa-tachometer-alt"></i>Dashboard</h1>
+        <p class="lead">System Overview &amp; Quick Actions</p>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <!-- Statistics Cards -->
+    <div class="col-md-3 mb-3">
+        <div class="stat-card primary">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-value">{{ total_devices }}</div>
+                    <div class="stat-label">Total Devices</div>
+                </div>
+                <div class="stat-icon">
+                    <i class="fas fa-server"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+        <div class="stat-card success">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-value" id="onlineCount">0</div>
+                    <div class="stat-label">Online</div>
+                </div>
+                <div class="stat-icon">
+                    <i class="fas fa-wifi"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+        <div class="stat-card danger">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-value" id="offlineCount">0</div>
+                    <div class="stat-label">Offline</div>
+                </div>
+                <div class="stat-icon">
+                    <i class="fas fa-power-off"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+        <div class="stat-card info">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-value" id="uptimePercent">0%</div>
+                    <div class="stat-label">Uptime (Avg)</div>
+                </div>
+                <div class="stat-icon">
+                    <i class="fas fa-percentage"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-2">
+    <div class="col-md-5 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-chart-pie"></i> Device Status Overview
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-7 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-bolt"></i> Quick Actions
+            </div>
+            <div class="card-body">
+                <a href="{{ url_for('scanning_bp.scanner_page') }}" class="action-btn">
+                    <i class="fas fa-search"></i>
+                    <span>Network Scanner</span>
+                </a>
+                <a href="{{ url_for('devices_bp.device_management') }}" class="action-btn">
+                    <i class="fas fa-plus"></i>
+                    <span>Add New Device</span>
+                </a>
+                <a href="{{ url_for('monitoring_bp.monitoring_page') }}" class="action-btn">
+                    <i class="fas fa-eye"></i>
+                    <span>Real-time Monitoring</span>
+                </a>
+                <a href="{{ url_for('reports_bp.reports_page') }}" class="action-btn">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>View Reports</span>
+                </a>
+                <a href="{{ url_for('tracking_bp.device_tracking') }}" class="action-btn">
+                    <i class="fas fa-laptop-house"></i>
+                    <span>Device Tracking</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-clock"></i> Recent Activity</span>
+                <button class="btn btn-sm btn-outline-secondary" onclick="loadRecentActivity()">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div id="recentActivity">
+                    <div class="activity-item">
+                        <span class="text-muted">Loading recent activity...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Tactical chart colors
+    const CHART_COLORS = {
+        online: '#00ff88',
+        offline: '#ff3b5c',
+        background: '#1e1e2a',
+        border: 'rgba(0, 212, 170, 0.3)',
+        text: '#b8b8c8'
+    };
+
+    // Load dashboard statistics
+    function loadDashboardStats() {
+        fetch('/api/monitoring/statistics')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Error loading stats:', data.error);
+                    return;
+                }
+
+                document.getElementById('onlineCount').textContent = data.online_count || 0;
+                document.getElementById('offlineCount').textContent = data.offline_count || 0;
+                document.getElementById('uptimePercent').textContent = data.online_percentage ? data.online_percentage.toFixed(1) + '%' : '0%';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    }
+
+    // Load status chart with tactical styling
+    function loadStatusChart() {
+        fetch('/api/monitoring/status')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Error loading status:', data.error);
+                    return;
+                }
+
+                const devices = data.devices;
+                const onlineCount = devices.filter(d => d.status === 'Online').length;
+                const offlineCount = devices.filter(d => d.status === 'Offline').length;
+
+                const ctx = document.getElementById('statusChart').getContext('2d');
+
+                if (window.statusChartInstance) {
+                    window.statusChartInstance.destroy();
+                }
+
+                window.statusChartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Online', 'Offline'],
+                        datasets: [{
+                            data: [onlineCount, offlineCount],
+                            backgroundColor: [CHART_COLORS.online, CHART_COLORS.offline],
+                            borderWidth: 0,
+                            hoverBorderWidth: 3,
+                            hoverBorderColor: '#ffffff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    font: {
+                                        size: 14,
+                                        family: "'Rajdhani', sans-serif",
+                                        weight: '600'
+                                    },
+                                    padding: 20,
+                                    color: CHART_COLORS.text,
+                                    usePointStyle: true,
+                                    pointStyle: 'circle'
+                                }
+                            },
+                            tooltip: {
+                                titleFont: {
+                                    size: 14,
+                                    family: "'Rajdhani', sans-serif",
+                                    weight: '700'
+                                },
+                                bodyFont: {
+                                    size: 13,
+                                    family: "'Rajdhani', sans-serif"
+                                },
+                                padding: 12,
+                                backgroundColor: 'rgba(30, 30, 42, 0.95)',
+                                titleColor: '#00ffc8',
+                                bodyColor: '#b8b8c8',
+                                borderColor: 'rgba(0, 212, 170, 0.3)',
+                                borderWidth: 1,
+                                cornerRadius: 8,
+                                callbacks: {
+                                    label: function (context) {
+                                        const label = context.label || '';
+                                        const value = context.parsed;
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = Math.round((value / total) * 100);
+                                        return `${label}: ${value} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        },
+                        cutout: '65%',
+                        animation: {
+                            animateScale: true,
+                            animateRotate: true
+                        }
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error loading chart:', error);
+            });
+    }
+
+    // Load recent activity
+    function loadRecentActivity() {
+        console.log("Fetching recent events...");
+        fetch('/api/monitoring/events?limit=10')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('recentActivity');
+
+                if (data.error) {
+                    container.innerHTML = '<div class="activity-item"><span class="text-danger">Error loading activity</span></div>';
+                    return;
+                }
+
+                const events = data.events;
+                let html = '';
+
+                if (!events || events.length === 0) {
+                    html = '<div class="activity-item"><span class="text-muted">No recent activity</span></div>';
+                } else {
+                    events.forEach(event => {
+                        // Map severity to colors/classes
+                        let statusClass = 'primary';
+                        let icon = 'fa-info-circle';
+
+                        if (event.severity === 'CRITICAL') {
+                            statusClass = 'danger'; // Red
+                            icon = 'fa-exclamation-triangle';
+                        } else if (event.severity === 'WARNING') {
+                            statusClass = 'warning'; // Orange
+                            icon = 'fa-exclamation-circle';
+                        } else if (event.severity === 'OK') {
+                            statusClass = 'success'; // Green
+                            icon = 'fa-check-circle';
+                        }
+
+                        // Format timestamp
+                        const ts = new Date(event.timestamp).toLocaleString();
+
+                        html += `
+                    <div class="activity-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="activity-device" style="color: #00ffc8;">${event.metric_name}</div>
+                            <div class="activity-details">
+                                <span class="text-white">${event.device_ip}</span> • ${event.message}
+                            </div>
+                            <div class="activity-details" style="font-size: 0.75rem; opacity: 0.7;">
+                                ${ts}
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-${statusClass}">
+                                <i class="fas ${icon}" style="font-size: 0.8rem; margin-right: 4px;"></i> ${event.severity}
+                            </span>
+                             <div class="activity-details mt-1">${event.value !== null ? event.value : ''}</div>
+                        </div>
+                    </div>
+                    `;
+                    });
+                }
+
+                container.innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Error loading activity:', error);
+                document.getElementById('recentActivity').innerHTML = '<div class="activity-item"><span class="text-muted">Failed to load activity</span></div>';
+            });
+    }
+
+    // Initialize dashboard
+    document.addEventListener('DOMContentLoaded', function () {
+        loadDashboardStats();
+        loadStatusChart();
+        loadRecentActivity();
+
+        // Refresh every 30 seconds
+        setInterval(loadDashboardStats, 30000);
+        setInterval(loadRecentActivity, 30000);
+    });
+</script>
+{% endblock %}

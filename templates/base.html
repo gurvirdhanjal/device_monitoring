@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Device Monitoring System{% endblock %}</title>
+
+    <!-- Google Fonts - Tactical Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+
+    <!-- Bootstrap & Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <!-- Tactical Theme CSS -->
+    <link href="{{ url_for('static', filename='css/tactical.css') }}" rel="stylesheet">
+    <!-- Note: style.css removed - conflicts with tactical theme -->
+
+    {% if session.logged_in %}
+    <link href="{{ url_for('static', filename='css/session_warning.css') }}" rel="stylesheet">
+    {% endif %}
+
+    <style>
+        /* ============================================================
+   BASE TACTICAL OVERRIDES
+   ============================================================ */
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            font-family: 'Rajdhani', 'Segoe UI', sans-serif;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            background: #0a0a0f !important;
+            background-image:
+                linear-gradient(rgba(0, 212, 170, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 212, 170, 0.02) 1px, transparent 1px) !important;
+            background-size: 50px 50px !important;
+            color: #ffffff;
+            min-height: 100vh;
+            transition: background-color 0.4s ease-in-out, color 0.4s ease-in-out, background-image 0.4s ease-in-out !important;
+        }
+
+        .main-content {
+            flex: 1 0 auto;
+            padding: 20px 0;
+        }
+
+        /* ============================================================
+   TACTICAL NAVBAR
+   ============================================================ */
+        .navbar {
+            background: linear-gradient(180deg, #12121a 0%, #0d0d14 100%) !important;
+            border-bottom: 1px solid rgba(0, 212, 170, 0.3);
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 212, 170, 0.1);
+            padding: 0.5rem 1rem;
+            position: relative;
+            transition: background 0.4s ease-in-out, border-color 0.4s ease-in-out, box-shadow 0.4s ease-in-out;
+        }
+
+        .navbar::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #00d4aa, transparent);
+        }
+
+        .navbar-brand {
+            color: #00ffc8 !important;
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            font-size: 1.4rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px rgba(0, 212, 170, 0.4);
+        }
+
+        .navbar-brand i {
+            color: #00d4aa;
+            margin-right: 0.5rem;
+        }
+
+        .navbar-nav .nav-link {
+            color: #ffffff !important;
+            font-weight: 600;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            padding: 0.6rem 1rem !important;
+            margin: 0 2px;
+            border-radius: 4px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .navbar-nav .nav-link:hover {
+            color: #00ffc8 !important;
+            background: rgba(0, 212, 170, 0.1);
+            text-shadow: 0 0 8px rgba(0, 212, 170, 0.4);
+        }
+
+        .navbar-nav .nav-link.active {
+            color: #00ffc8 !important;
+            background: rgba(0, 212, 170, 0.15);
+            border: 1px solid rgba(0, 212, 170, 0.3);
+        }
+
+        .navbar-nav .nav-link i {
+            margin-right: 0.4rem;
+        }
+
+        .navbar-nav .dropdown-menu {
+            background: #252532;
+            border: 1px solid rgba(0, 212, 170, 0.3);
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 212, 170, 0.2);
+            padding: 0.5rem;
+        }
+
+        .navbar-nav .dropdown-item {
+            color: #ffffff;
+            font-weight: 500;
+            padding: 0.6rem 1rem;
+            border-radius: 4px;
+            transition: all 0.15s ease;
+        }
+
+        .navbar-nav .dropdown-item:hover {
+            background: rgba(0, 212, 170, 0.1);
+            color: #00ffc8;
+        }
+
+        .navbar-nav .dropdown-item i {
+            margin-right: 0.5rem;
+            width: 18px;
+        }
+
+        .navbar-nav .dropdown-divider {
+            border-color: rgba(255, 255, 255, 0.08);
+            margin: 0.4rem 0;
+        }
+
+        .navbar-toggler {
+            border: 1px solid rgba(0, 212, 170, 0.3);
+        }
+
+        .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%2300d4aa' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+        }
+
+        /* ============================================================
+   TACTICAL CARDS (Bootstrap Override)
+   ============================================================ */
+        .card {
+            background: linear-gradient(145deg, #1e1e2a 0%, #252532 100%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.4s ease-in-out, border-color 0.4s ease-in-out;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00d4aa, transparent);
+            opacity: 0.5;
+        }
+
+        .card:hover {
+            border-color: rgba(0, 212, 170, 0.3);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 212, 170, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            background: rgba(0, 0, 0, 0.3) !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.9rem;
+            padding: 0.75rem 1rem;
+        }
+
+        .card-header i {
+            color: #00d4aa;
+            margin-right: 0.5rem;
+        }
+
+        .card-body {
+            padding: 1rem;
+            color: #ffffff;
+        }
+
+        .card-footer {
+            background: rgba(0, 0, 0, 0.2) !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 0.75rem 1rem;
+        }
+
+        /* Colored Cards */
+        .card.bg-primary,
+        .card.bg-success,
+        .card.bg-danger,
+        .card.bg-warning,
+        .card.bg-info {
+            border-left: 4px solid;
+        }
+
+        .card.bg-primary {
+            background: linear-gradient(145deg, rgba(0, 212, 170, 0.15) 0%, rgba(0, 212, 170, 0.05) 100%) !important;
+            border-left-color: #00d4aa;
+        }
+
+        .card.bg-success {
+            background: linear-gradient(145deg, rgba(0, 255, 136, 0.15) 0%, rgba(0, 255, 136, 0.05) 100%) !important;
+            border-left-color: #00ff88;
+        }
+
+        .card.bg-danger {
+            background: linear-gradient(145deg, rgba(255, 59, 92, 0.15) 0%, rgba(255, 59, 92, 0.05) 100%) !important;
+            border-left-color: #ff3b5c;
+        }
+
+        .card.bg-warning {
+            background: linear-gradient(145deg, rgba(255, 170, 0, 0.15) 0%, rgba(255, 170, 0, 0.05) 100%) !important;
+            border-left-color: #ffaa00;
+        }
+
+        .card.bg-info {
+            background: linear-gradient(145deg, rgba(0, 170, 255, 0.15) 0%, rgba(0, 170, 255, 0.05) 100%) !important;
+            border-left-color: #00aaff;
+        }
+
+        /* ============================================================
+   TACTICAL BUTTONS
+   ============================================================ */
+        .btn {
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 600;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0.6rem 1.25rem;
+            border-radius: 4px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-primary {
+            background: #00a080 !important;
+            border: 1px solid #00d4aa !important;
+            color: #0a0a0f !important;
+        }
+
+        .btn-primary:hover {
+            background: #00d4aa !important;
+            box-shadow: 0 0 20px rgba(0, 212, 170, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: transparent !important;
+            border: 1px solid #6a6a80 !important;
+            color: #b8b8c8 !important;
+        }
+
+        .btn-secondary:hover {
+            border-color: #00d4aa !important;
+            color: #00d4aa !important;
+            background: rgba(0, 212, 170, 0.1) !important;
+        }
+
+        .btn-success {
+            background: rgba(0, 255, 136, 0.2) !important;
+            border: 1px solid #00ff88 !important;
+            color: #00ff88 !important;
+        }
+
+        .btn-success:hover {
+            background: #00ff88 !important;
+            color: #0a0a0f !important;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+        }
+
+        .btn-danger {
+            background: rgba(255, 59, 92, 0.2) !important;
+            border: 1px solid #ff3b5c !important;
+            color: #ff3b5c !important;
+        }
+
+        .btn-danger:hover {
+            background: #ff3b5c !important;
+            color: white !important;
+            box-shadow: 0 0 20px rgba(255, 59, 92, 0.3);
+        }
+
+        .btn-warning {
+            background: rgba(255, 170, 0, 0.2) !important;
+            border: 1px solid #ffaa00 !important;
+            color: #ffaa00 !important;
+        }
+
+        .btn-warning:hover {
+            background: #ffaa00 !important;
+            color: #0a0a0f !important;
+            box-shadow: 0 0 20px rgba(255, 170, 0, 0.3);
+        }
+
+        .btn-info {
+            background: rgba(0, 170, 255, 0.2) !important;
+            border: 1px solid #00aaff !important;
+            color: #00aaff !important;
+        }
+
+        .btn-info:hover {
+            background: #00aaff !important;
+            color: #0a0a0f !important;
+            box-shadow: 0 0 20px rgba(0, 170, 255, 0.3);
+        }
+
+        .btn-outline-primary {
+            border-color: #00d4aa !important;
+            color: #00d4aa !important;
+        }
+
+        .btn-outline-primary:hover {
+            background: rgba(0, 212, 170, 0.1) !important;
+            color: #00ffc8 !important;
+        }
+
+        .btn-outline-secondary {
+            border-color: #6a6a80 !important;
+            color: #b8b8c8 !important;
+        }
+
+        .btn-outline-secondary:hover {
+            background: rgba(255, 255, 255, 0.05) !important;
+            border-color: #b8b8c8 !important;
+            color: #ffffff !important;
+        }
+
+        .btn-outline-success {
+            border-color: #00ff88 !important;
+            color: #00ff88 !important;
+        }
+
+        .btn-outline-success:hover {
+            background: rgba(0, 255, 136, 0.1) !important;
+        }
+
+        .btn-outline-danger {
+            border-color: #ff3b5c !important;
+            color: #ff3b5c !important;
+        }
+
+        .btn-outline-danger:hover {
+            background: rgba(255, 59, 92, 0.1) !important;
+        }
+
+        .btn-outline-warning {
+            border-color: #ffaa00 !important;
+            color: #ffaa00 !important;
+        }
+
+        .btn-outline-warning:hover {
+            background: rgba(255, 170, 0, 0.1) !important;
+        }
+
+        .btn-outline-info {
+            border-color: #00aaff !important;
+            color: #00aaff !important;
+        }
+
+        .btn-outline-info:hover {
+            background: rgba(0, 170, 255, 0.1) !important;
+        }
+
+        /* ============================================================
+   TACTICAL TABLES
+   ============================================================ */
+        .table {
+            color: #e8e8f0;
+            border-color: rgba(255, 255, 255, 0.08);
+            transition: color 0.4s ease, border-color 0.4s ease;
+        }
+
+        .table thead th {
+            background: #0d0d14;
+            color: #00d4aa;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.8rem;
+            border-bottom: 2px solid rgba(0, 212, 170, 0.3);
+            padding: 1rem;
+        }
+
+        .table-dark thead th {
+            background: #0d0d14 !important;
+            color: #00d4aa !important;
+            border-color: rgba(0, 212, 170, 0.3) !important;
+        }
+
+        .table tbody tr {
+            background: #1e1e2a;
+            transition: all 0.15s ease;
+        }
+
+        .table tbody tr:hover {
+            background: rgba(0, 212, 170, 0.15) !important;
+            box-shadow: inset 0 0 15px rgba(0, 212, 170, 0.05);
+            box-shadow: inset 0 0 15px rgba(0, 212, 170, 0.05);
+            color: #ffffff !important;
+        }
+
+        .table tbody tr:hover td {
+            color: #ffffff !important;
+        }
+
+        .table-striped tbody tr:nth-of-type(odd) {
+            background: #1a1a24;
+        }
+
+        .table-striped tbody tr:nth-of-type(odd):hover {
+            background: #252532 !important;
+        }
+
+        .table tbody td {
+            border-color: rgba(255, 255, 255, 0.05);
+            padding: 0.875rem 1rem;
+            vertical-align: middle;
+            color: #e8e8f0;
+            font-size: 0.95rem;
+        }
+
+        .table tbody td strong,
+        .table tbody td a {
+            color: #ffffff;
+        }
+
+        .table-hover tbody tr:hover {
+            background: rgba(0, 212, 170, 0.15) !important;
+            color: #ffffff;
+            box-shadow: inset 0 0 15px rgba(0, 212, 170, 0.05);
+            color: #ffffff !important;
+        }
+
+        .table-hover tbody tr:hover td {
+            color: #ffffff !important;
+        }
+
+        /* ============================================================
+   TACTICAL FORMS
+   ============================================================ */
+        .form-control,
+        .form-select {
+            background: #0d0d14 !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            border-radius: 4px;
+            color: #ffffff !important;
+            padding: 0.75rem 1rem;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: #00d4aa !important;
+            box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.1), 0 0 10px rgba(0, 212, 170, 0.4) !important;
+            background: #12121a !important;
+        }
+
+        .form-control::placeholder {
+            color: #4a4a5a;
+        }
+
+        .form-label {
+            color: #00ffc8;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+        }
+
+        .input-group-text {
+            background: #12121a !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            color: #00d4aa !important;
+        }
+
+        .form-check-input {
+            background-color: #1e1e2a;
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .form-check-input:checked {
+            background-color: #00d4aa;
+            border-color: #00d4aa;
+        }
+
+        .form-check-label {
+            color: #b8b8c8;
+        }
+
+        /* ============================================================
+   TACTICAL BADGES
+   ============================================================ */
+        .badge {
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 0.35rem 0.75rem;
+            border: 1px solid;
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .badge.bg-primary,
+        .bg-primary {
+            background: rgba(0, 212, 170, 0.15) !important;
+            border-color: #00d4aa;
+            color: #00d4aa !important;
+        }
+
+        .badge.bg-success,
+        .bg-success {
+            background: rgba(0, 255, 136, 0.15) !important;
+            border-color: #00ff88;
+            color: #00ff88 !important;
+        }
+
+        .badge.bg-danger,
+        .bg-danger {
+            background: rgba(255, 59, 92, 0.15) !important;
+            border-color: #ff3b5c;
+            color: #ff3b5c !important;
+        }
+
+        .badge.bg-warning,
+        .bg-warning {
+            background: rgba(255, 170, 0, 0.15) !important;
+            border-color: #ffaa00;
+            color: #ffaa00 !important;
+        }
+
+        .badge.bg-info,
+        .bg-info {
+            background: rgba(0, 170, 255, 0.15) !important;
+            border-color: #00aaff;
+            color: #00aaff !important;
+        }
+
+        .badge.bg-secondary,
+        .bg-secondary {
+            background: rgba(255, 255, 255, 0.05) !important;
+            border-color: #00ffc8;
+            color: #00ffc8 !important;
+        }
+
+        .badge.bg-light {
+            background: rgba(255, 255, 255, 0.1) !important;
+            color: #b8b8c8 !important;
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .badge.bg-dark {
+            background: #0d0d14 !important;
+            color: #ffffff !important;
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* ============================================================
+   TACTICAL MODALS
+   ============================================================ */
+        .modal-content {
+            background: #1e1e2a !important;
+            border: 1px solid rgba(0, 212, 170, 0.3);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 60px rgba(0, 212, 170, 0.1);
+            transition: background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+        }
+
+        .modal-header {
+            background: linear-gradient(180deg, #252532 0%, #1e1e2a 100%) !important;
+            border-bottom: 1px solid rgba(0, 212, 170, 0.3);
+            padding: 1.25rem 1.5rem;
+        }
+
+        .modal-title {
+            color: #00ffc8 !important;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .modal-title i {
+            margin-right: 0.5rem;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+            color: #ffffff;
+        }
+
+        .modal-footer {
+            background: #0d0d14 !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 1rem 1.5rem;
+        }
+
+        .btn-close {
+            filter: invert(1) brightness(0.8);
+            opacity: 0.5;
+        }
+
+        .btn-close:hover {
+            opacity: 1;
+        }
+
+        .modal-fullscreen .modal-content {
+            background: #0a0a0f !important;
+            border: none;
+            border-radius: 0;
+        }
+
+        /* ============================================================
+   TACTICAL ALERTS
+   ============================================================ */
+        .alert {
+            background: #1e1e2a;
+            border: 1px solid;
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+            border-left-width: 4px;
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .alert-success {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+            color: #00ff88;
+        }
+
+        .alert-danger {
+            border-color: #ff3b5c;
+            background: rgba(255, 59, 92, 0.1);
+            color: #ff3b5c;
+        }
+
+        .alert-warning {
+            border-color: #ffaa00;
+            background: rgba(255, 170, 0, 0.1);
+            color: #ffaa00;
+        }
+
+        .alert-info {
+            border-color: #00aaff;
+            background: rgba(0, 170, 255, 0.1);
+            color: #00aaff;
+        }
+
+        /* ============================================================
+   TACTICAL PROGRESS BARS
+   ============================================================ */
+        .progress {
+            background: #0d0d14;
+            border-radius: 4px;
+            height: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .progress-bar {
+            border-radius: 4px;
+        }
+
+        .progress-bar.bg-success {
+            background: #00ff88 !important;
+        }
+
+        .progress-bar.bg-danger {
+            background: #ff3b5c !important;
+        }
+
+        .progress-bar.bg-warning {
+            background: #ffaa00 !important;
+        }
+
+        .progress-bar.bg-info {
+            background: #00aaff !important;
+        }
+
+        .progress-bar.bg-primary {
+            background: #00d4aa !important;
+        }
+
+        /* ============================================================
+   TACTICAL FOOTER
+   ============================================================ */
+        footer,
+        .footer {
+            background: linear-gradient(180deg, #0d0d14 0%, #0a0a0f 100%) !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 1rem 0;
+            color: #00ffc8;
+            font-size: 0.85rem;
+            position: relative;
+        }
+
+        footer::before,
+        .footer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #00a080, transparent);
+        }
+
+        /* ============================================================
+   TACTICAL PROFILE MODAL
+   ============================================================ */
+        .profile-modal .modal-header {
+            background: linear-gradient(135deg, #1e1e2a 0%, #252532 100%) !important;
+        }
+
+        .profile-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00d4aa 0%, #00a080 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: #0a0a0f;
+            margin: 0 auto 20px;
+            border: 4px solid rgba(0, 212, 170, 0.3);
+            box-shadow: 0 0 30px rgba(0, 212, 170, 0.3);
+        }
+
+        .profile-username {
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #00ffc8;
+            margin-bottom: 30px;
+            font-family: 'Orbitron', monospace;
+        }
+
+        .profile-info-item {
+            padding: 15px;
+            border-left: 4px solid #00d4aa;
+            background: rgba(0, 212, 170, 0.05);
+            border-radius: 5px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .profile-info-item:hover {
+            transform: translateX(5px);
+            background: rgba(0, 212, 170, 0.1);
+            box-shadow: 0 0 15px rgba(0, 212, 170, 0.2);
+        }
+
+        .profile-info-label {
+            font-weight: 600;
+            color: #00d4aa;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+
+        .profile-info-label i {
+            margin-right: 0.5rem;
+            width: 16px;
+        }
+
+        .profile-info-value {
+            font-size: 1.1rem;
+            color: #ffffff !important;
+            font-weight: 500;
+        }
+
+        .badge-role {
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            border-radius: 4px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* ============================================================
+   TACTICAL CODE STYLING
+   ============================================================ */
+        code {
+            background: rgba(0, 212, 170, 0.1);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8125rem;
+            color: #00ffc8;
+            font-weight: 500;
+            font-family: 'JetBrains Mono', 'Monaco', monospace;
+            border: 1px solid rgba(0, 212, 170, 0.2);
+        }
+
+        /* ============================================================
+   TACTICAL TEXT COLORS
+   ============================================================ */
+        .text-primary {
+            color: #00d4aa !important;
+        }
+
+        .text-success {
+            color: #00ff88 !important;
+        }
+
+        .text-danger {
+            color: #ff3b5c !important;
+        }
+
+        .text-warning {
+            color: #ffaa00 !important;
+        }
+
+        .text-info {
+            color: #00aaff !important;
+        }
+
+        .text-muted {
+            color: #6a6a80 !important;
+        }
+
+        .text-white {
+            color: #ffffff !important;
+        }
+
+        .text-light {
+            color: #b8b8c8 !important;
+        }
+
+        /* Page titles */
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
+            color: #ffffff;
+            font-family: 'Rajdhani', sans-serif;
+        }
+
+        .lead {
+            color: #b8b8c8;
+        }
+
+        /* Links */
+        a {
+            color: #00d4aa;
+            transition: all 0.2s ease;
+        }
+
+        a:hover {
+            color: #00ffc8;
+            text-shadow: 0 0 8px rgba(0, 212, 170, 0.4);
+        }
+
+        /* ============================================================
+   SCROLLBAR STYLING
+   ============================================================ */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0d0d14;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #252532;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00a080;
+        }
+
+        /* ============================================================
+   SELECTION STYLING
+   ============================================================ */
+        ::selection {
+            background: #00d4aa;
+            color: #0a0a0f;
+        }
+
+        /* ============================================================
+   CONTAINER
+   ============================================================ */
+        .container-fluid {
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
+        }
+
+        /* ============================================================
+   NAV TABS & PILLS
+   ============================================================ */
+        .nav-tabs {
+            border-bottom-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .nav-tabs .nav-link {
+            color: #b8b8c8;
+            border: none;
+            border-bottom: 2px solid transparent;
+            background: transparent;
+            padding: 0.75rem 1rem;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-tabs .nav-link:hover {
+            color: #00d4aa;
+            border-color: transparent;
+        }
+
+        .nav-tabs .nav-link.active {
+            color: #00ffc8 !important;
+            background: transparent;
+            border-bottom-color: #00d4aa;
+        }
+
+        .nav-pills .nav-link {
+            color: #b8b8c8;
+            background: transparent;
+            border: 1px solid transparent;
+        }
+
+        .nav-pills .nav-link:hover {
+            background: rgba(0, 212, 170, 0.1);
+            color: #00d4aa;
+        }
+
+        .nav-pills .nav-link.active {
+            background: rgba(0, 212, 170, 0.15);
+            color: #00ffc8;
+            border-color: rgba(0, 212, 170, 0.3);
+        }
+
+        /* ============================================================
+   RESPONSIVE DESIGN
+   ============================================================ */
+        @media (max-width: 768px) {
+            .navbar-nav .nav-link {
+                padding: 0.75rem 1rem !important;
+            }
+
+            .container-fluid {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+
+            .profile-avatar {
+                width: 100px;
+                height: 100px;
+                font-size: 2.5rem;
+            }
+
+            .profile-username {
+                font-size: 1.25rem;
+            }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body class="tactical-theme">
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('monitoring_bp.dashboard') }}">
+                <i class="fas fa-network-wired"></i>NMS
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                {% if session.logged_in %}
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('devices_bp.device_management') }}">
+                            <i class="fas fa-server"></i> Devices
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('scanning_bp.scanner_page') }}">
+                            <i class="fas fa-search"></i> Scanner
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('reports_bp.reports_page') }}">
+                            <i class="fas fa-chart-bar"></i> Reports
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('monitoring_bp.monitoring_page') }}">
+                            <i class="fas fa-eye"></i> Network
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('tracking_bp.device_tracking') }}">
+                            <i class="fas fa-laptop-house"></i> Tracking
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('camera_bp.camera_dashboard') }}">
+                            <i class="fas fa-video"></i> E-NVR
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('file_transfer_bp.file_transfer_dashboard') }}">
+                            <i class="fas fa-exchange-alt"></i> Files
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
+                            data-bs-toggle="dropdown">
+                            <i class="fas fa-user"></i> {{ session.username }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#profileModal">
+                                    <i class="fas fa-user-circle"></i> My Profile
+                                </a></li>
+                            {% if session.role == 'admin' %}
+                            <li><a class="dropdown-item" href="{{ url_for('user_management_bp.user_management') }}">
+                                    <i class="fas fa-users-cog"></i> Users
+                                </a></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            {% endif %}
+                            <li><a class="dropdown-item" href="{{ url_for('auth_bp.logout') }}">
+                                    <i class="fas fa-sign-out-alt"></i> Logout
+                                </a></li>
+                        </ul>
+                    </li>
+                </ul>
+                {% else %}
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth_bp.login') }}">Login</a>
+                    </li>
+                </ul>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- User Profile Modal -->
+    <div class="modal fade profile-modal" id="profileModal" tabindex="-1" aria-labelledby="profileModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="profileModalLabel">
+                        <i class="fas fa-user-circle"></i> User Profile
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="profile-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="profile-username">
+                        {{ session.username }}
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="profile-info-item">
+                                <div class="profile-info-label">
+                                    <i class="fas fa-user"></i> Username
+                                </div>
+                                <div class="profile-info-value">{{ session.username }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="profile-info-item">
+                                <div class="profile-info-label">
+                                    <i class="fas fa-shield-alt"></i> Role
+                                </div>
+                                <div class="profile-info-value">
+                                    <span
+                                        class="badge badge-role {% if session.role == 'admin' %}bg-danger{% else %}bg-primary{% endif %}">
+                                        {% if session.role == 'admin' %}
+                                        <i class="fas fa-crown"></i> ADMINISTRATOR
+                                        {% else %}
+                                        <i class="fas fa-user"></i> USER
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="profile-info-item">
+                                <div class="profile-info-label">
+                                    <i class="fas fa-key"></i> User ID
+                                </div>
+                                <div class="profile-info-value">
+                                    <code>#{{ session.user_id }}</code>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="profile-info-item">
+                                <div class="profile-info-label">
+                                    <i class="fas fa-clock"></i> Last Activity
+                                </div>
+                                <div class="profile-info-value">{{ session.last_activity }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="profile-info-item">
+                                <div class="profile-info-label">
+                                    <i class="fas fa-network-wired"></i> Current IP Address
+                                </div>
+                                <div class="profile-info-value">
+                                    <code>{{ request.remote_addr }}</code>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid mt-4 main-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ error }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <footer>
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-md-6">
+                    <p>&copy; 2026-27 APL Techno. All rights reserved.</p>
+                </div>
+                <div class="col-md-6 text-end">
+                    <p>Version 1.1.3 | <span style="color: #00d4aa;">NMS</span></p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='js/session_manager.js') }}"></script>
+    {% if session.logged_in %}
+    <script src="{{ url_for('static', filename='js/session_manager.js') }}"></script>
+    {% endif %}
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>

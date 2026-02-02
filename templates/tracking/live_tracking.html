@@ -1,0 +1,1372 @@
+{% extends "base.html" %}
+
+{% block title %}Live Device Tracking - Admin{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 style="color: white;"><i class="fas fa-chart-line"></i> Live Device Tracking</h1>
+                <p style="color: white;" class="lead">Real-time monitoring of all employee devices</p>
+            </div>
+            <div>
+                <a href="{{ url_for('tracking_bp.device_tracking') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Device Management
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Real-time Overview Cards -->
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title" id="totalDevices">{{ saved_devices|length }}</h4>
+                        <p class="card-text">Total Devices</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-laptop fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title" id="activeDevices">0</h4>
+                        <p class="card-text">Active Now</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-signal fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title" id="totalActivity">0</h4>
+                        <p class="card-text">Total Events</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-chart-line fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title" id="avgUsage">0%</h4>
+                        <p class="card-text">Avg CPU Usage</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-microchip fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Live Alerts Section -->
+<div class="row mt-4" id="alertsSection" style="display: none;">
+    <div class="col-md-12">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Live Alerts</h5>
+                <button class="btn btn-sm btn-outline-light" id="dismissAlertsBtn">
+                    <i class="fas fa-times"></i> Dismiss
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="liveAlertsContainer"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Real-time Tracking Section -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-chart-line"></i> Live Device Monitoring</h5>
+                <div>
+                    <span class="badge bg-success me-2" id="lastUpdate">Never updated</span>
+                    <button class="btn btn-sm btn-outline-primary" id="refreshAllBtn">
+                        <i class="fas fa-sync-alt"></i> Refresh All
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" id="toggleAutoRefresh" data-auto-refresh="true">
+                        <i class="fas fa-pause"></i> Pause Auto
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" class="form-control" id="liveSearch" placeholder="Search devices...">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check form-switch float-end">
+                            <input class="form-check-input" type="checkbox" id="showOfflineToggle" checked>
+                            <label class="form-check-label" for="showOfflineToggle">Show Offline Devices</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="realTimeMonitoring">
+                    {% if saved_devices %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Device</th>
+                                    <th>Status</th>
+                                    <th>Activity</th>
+                                    <th>Resources</th>
+                                    <th>Applications</th>
+                                    <th>Screen Time</th>
+                                    <th>Last Active</th>
+                                    <th>Live View</th>
+                                </tr>
+                            </thead>
+                            <tbody id="realTimeDevices">
+                                {% for device in saved_devices %}
+                                <tr id="device-{{ device.mac_address|replace(':', '') }}" class="live-device-row"
+                                    data-device-name="{{ device.device_name|lower }}"
+                                    data-employee-name="{{ device.employee_name|lower if device.employee_name else '' }}">
+                                    <td>
+                                        <strong class="device-name">{{ device.device_name }}</strong>
+                                        <br><small class="text-muted employee-name">{{ device.employee_name or 'N/A'
+                                            }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary status-badge">Offline</span>
+                                        <br><small class="text-muted device-ip">{{ device.ip_address or 'N/A' }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="activity-indicators">
+                                            <span class="badge bg-light text-dark me-1 keyboard-events">K: 0</span>
+                                            <span class="badge bg-light text-dark me-1 mouse-events">M: 0</span>
+                                            <span class="badge bg-light text-dark scroll-events">S: 0</span>
+                                        </div>
+                                        <small class="text-muted idle-time">Idle: 0s</small>
+                                    </td>
+                                    <td>
+                                        <div class="resource-usage">
+                                            <small>CPU: <span class="cpu-usage">0%</span></small><br>
+                                            <small>RAM: <span class="memory-usage">0%</span></small><br>
+                                            <small>Disk: <span class="disk-usage">0%</span></small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="applications-list">
+                                            <small class="text-muted current-app">No active app</small>
+                                            <br>
+                                            <small class="text-muted app-count">0 apps used</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="screen-time">
+                                            <small class="active-time">Active: 0h 0m</small>
+                                            <br>
+                                            <small class="total-time">Total: 0h 0m</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <small class="last-seen">Never</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary track-live"
+                                                data-mac="{{ device.mac_address }}" data-device-id="{{ device.id }}"
+                                                title="Live Tracking">
+                                                <i class="fas fa-play"></i> Live
+                                            </button>
+                                            <button class="btn btn-outline-success view-screens"
+                                                data-mac="{{ device.mac_address }}" title="View Screens">
+                                                <i class="fas fa-desktop"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-laptop fa-3x text-muted mb-3"></i>
+                        <h5>No Devices Configured</h5>
+                        <p class="text-muted">Add devices in the main tracking page to start live monitoring.</p>
+                        <a href="{{ url_for('tracking_bp.device_tracking') }}" class="btn btn-primary mt-2">
+                            <i class="fas fa-plus"></i> Add Devices
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Live Tracking Modal -->
+<div class="modal fade" id="liveTrackingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-chart-line"></i> Live Tracking -
+                    <span id="trackingDeviceName">Loading...</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="width: 100%; background-color: #212529;">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card mb-3 bg-dark border-secondary">
+                            <div class="card-header bg-dark border-secondary">
+                                <ul class="nav nav-tabs card-header-tabs" id="liveTrackingTabs">
+                                    <li class="nav-item">
+                                        <a class="nav-link active text-white" data-bs-toggle="tab"
+                                            href="#liveRealtimeTab">Real-time</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link text-white" data-bs-toggle="tab"
+                                            href="#liveScreensTab">Screens</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link text-white" data-bs-toggle="tab"
+                                            href="#liveCameraTab">Camera</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link text-white" data-bs-toggle="tab"
+                                            href="#liveAlertsTab">Alerts</a>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="card-body bg-dark text-white p-4">
+                                <div class="tab-content">
+                                    <!-- Real-time Tab -->
+                                    <div class="tab-pane fade show active" id="liveRealtimeTab">
+                                        <!-- Row 1: Overview Stats -->
+                                        <div class="row mb-4">
+                                            <!-- Resource Usage -->
+                                            <div class="col-md-4">
+                                                <div class="card h-100 bg-dark border-secondary">
+                                                    <div class="card-header bg-dark border-secondary text-warning">
+                                                        <i class="fas fa-microchip"></i> Resource Usage
+                                                    </div>
+                                                    <div class="card-body" id="liveResourceUsageCard">
+                                                        <div class="text-center py-4">
+                                                            <div class="spinner-border text-primary"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <!-- Current Activity -->
+                                            <div class="col-md-4">
+                                                <div class="card h-100 bg-dark border-secondary">
+                                                    <div class="card-header bg-dark border-secondary text-success">
+                                                        <i class="fas fa-chart-line"></i> Current Activity
+                                                    </div>
+                                                    <div class="card-body" id="liveActivityCard">
+                                                        <div class="text-center py-4">
+                                                            <div class="spinner-border text-primary"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <!-- Device Info -->
+                                            <div class="col-md-4">
+                                                <div class="card h-100 bg-dark border-secondary">
+                                                    <div class="card-header bg-dark border-secondary text-info">
+                                                        <i class="fas fa-info-circle"></i> Device Information
+                                                    </div>
+                                                    <div class="card-body" id="liveDeviceInfoCard">
+                                                        <div class="text-center py-4">
+                                                            <div class="spinner-border text-primary"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Row 2: Processes and Apps -->
+                                        <div class="row">
+                                            <!-- Top Processes -->
+                                            <div class="col-md-8">
+                                                <div class="card h-100 bg-dark border-secondary">
+                                                    <div class="card-header bg-dark border-secondary text-danger">
+                                                        <i class="fas fa-tasks"></i> Top Processes
+                                                    </div>
+                                                    <div class="card-body p-0" id="liveProcessesCard">
+                                                        <div class="text-center py-4">
+                                                            <div class="spinner-border text-primary"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <!-- Active Apps -->
+                                            <div class="col-md-4">
+                                                <div class="card h-100 bg-dark border-secondary">
+                                                    <div class="card-header bg-dark border-secondary text-primary">
+                                                        <i class="fas fa-window-restore"></i> Active Applications
+                                                    </div>
+                                                    <div class="card-body" id="liveApplicationsCard">
+                                                        <div class="text-center py-4">
+                                                            <div class="spinner-border text-primary"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Screens Tab -->
+                                    <div class="tab-pane fade" id="liveScreensTab" role="tabpanel">
+                                        <!-- Content preserved via JS logic primarily, just structural placeholder -->
+                                        <div class="row">
+                                            <div class="col-md-12">
+                                                <div class="card bg-dark border-secondary text-white">
+                                                    <div
+                                                        class="card-header border-secondary d-flex justify-content-between align-items-center">
+                                                        <h6 class="mb-0"><i class="fas fa-desktop"></i> Live Screenshot
+                                                        </h6>
+                                                        <div>
+                                                            <button class="btn btn-sm btn-outline-light"
+                                                                id="refreshLiveScreenshot"><i
+                                                                    class="fas fa-sync-alt"></i></button>
+                                                            <button class="btn btn-sm btn-success"
+                                                                id="captureScreenshotBtn"><i class="fas fa-camera"></i>
+                                                                Capture</button>
+                                                        </div>
+                                                    </div>
+                                                    <div class="card-body text-center p-0 bg-black d-flex justify-content-center align-items-center"
+                                                        style="height: 70vh;">
+                                                        <img id="liveScreenshotStream" class="img-fluid"
+                                                            style="max-height: 100%; max-width: 100%; object-fit: contain;"
+                                                            alt="Stream">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Camera Tab -->
+                                    <div class="tab-pane fade" id="liveCameraTab" role="tabpanel">
+                                        <div class="row">
+                                            <div class="col-md-12">
+                                                <div class="card bg-dark border-secondary text-white">
+                                                    <div
+                                                        class="card-header border-secondary d-flex justify-content-between align-items-center">
+                                                        <h6 class="mb-0"><i class="fas fa-video"></i> Live Camera</h6>
+                                                        <div>
+                                                            <button class="btn btn-sm btn-outline-light"
+                                                                id="refreshLiveCamera"><i
+                                                                    class="fas fa-sync-alt"></i></button>
+                                                            <button class="btn btn-sm btn-warning"
+                                                                id="toggleCameraBtn"><i class="fas fa-power-off"></i>
+                                                                Toggle</button>
+                                                        </div>
+                                                    </div>
+                                                    <div class="card-body text-center p-0 bg-black d-flex justify-content-center align-items-center"
+                                                        style="height: 70vh;">
+                                                        <img id="liveCameraStream" class="img-fluid"
+                                                            style="max-height: 100%; max-width: 100%; object-fit: contain;"
+                                                            alt="Camera Stream">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Alerts Tab -->
+                                    <div class="tab-pane fade" id="liveAlertsTab">
+                                        <div id="modalAlertsContainer" class="py-2 text-white">
+                                            <div class="text-center py-4">
+                                                <i class="fas fa-bell-slash fa-2x text-muted mb-3"></i>
+                                                <p>No alerts for this device</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div> <!-- /.tab-content -->
+                            </div>
+                        </div>
+                    </div>
+                </div> <!-- /.row -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Capture Screenshot Modal -->
+<div class="modal fade" id="captureModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-camera"></i> Captured Screenshot</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="capturedImage" src="" class="img-fluid rounded" alt="Captured Screenshot">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-primary" id="downloadCaptureBtn">
+                    <i class="fas fa-download"></i> Download
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Helper to minimize DOM writes/repaints
+    function updateTextIfChanged(element, newText) {
+        if (element && element.textContent !== newText) {
+            element.textContent = newText;
+        }
+    }
+
+    // Global variables
+    let liveInterval;
+    let currentTrackingMac = null;
+    let liveTrackingModal = null;
+    let autoRefreshEnabled = true;
+    let cameraEnabled = true;   // NEW: track camera state
+    let currentCapturedImage = null;
+
+    // Initialize when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function () {
+        initLiveTracking();
+        attachLiveEventListeners();
+
+        // Check if a specific device was requested via URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const deviceId = urlParams.get('device_id');
+        if (deviceId) {
+            setTimeout(() => {
+                const deviceRow = document.querySelector(`.track-live[data-device-id="${deviceId}"]`);
+                if (deviceRow) {
+                    deviceRow.click();
+                }
+            }, 1000);
+        }
+    });
+
+    // Live tracking initialization
+    function initLiveTracking() {
+        // Start periodic updates
+        updateAllLiveDevices();
+        if (autoRefreshEnabled) {
+            liveInterval = setInterval(updateAllLiveDevices, 2000); // Update every 2 seconds
+        }
+
+        // Update dashboard stats
+        updateLiveDashboardStats();
+
+        // Load live alerts
+        loadLiveAlerts();
+    }
+
+    // Update all devices in real-time
+    function updateAllLiveDevices() {
+        if (!autoRefreshEnabled) return;
+
+        const deviceRows = document.querySelectorAll('#realTimeDevices tr');
+
+        deviceRows.forEach(row => {
+            const macAddress = row.id.replace('device-', '').replace(/(.{2})(?!$)/g, '$1:');
+            updateLiveDeviceStatus(macAddress, row);
+        });
+
+        // Update last update time
+        document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+
+        // Update dashboard stats
+        updateLiveDashboardStats();
+    }
+
+    // Update individual device status
+    function updateLiveDeviceStatus(macAddress, row) {
+        fetch(`/api/tracking/real-time/${macAddress}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateLiveDeviceRow(row, data.tracking_data, data.device_info);
+                } else {
+                    setLiveDeviceOffline(row);
+                }
+            })
+            .catch(error => {
+                console.error('Error updating device:', error);
+                setLiveDeviceOffline(row);
+            });
+    }
+
+    // Update device row with live data
+    function updateLiveDeviceRow(row, trackingData, deviceInfo) {
+        const activity = trackingData.current_activity || {};
+        const todayStats = trackingData.today_stats || {};
+        const systemMetrics = trackingData.system_metrics || {};
+
+        // Update status
+        const statusBadge = row.querySelector('.status-badge');
+        if (statusBadge.className !== 'badge bg-success status-badge') {
+            statusBadge.className = 'badge bg-success status-badge';
+        }
+        updateTextIfChanged(statusBadge, 'Online');
+
+        // Update activity
+        updateTextIfChanged(row.querySelector('.keyboard-events'), `K: ${todayStats.keyboard_events || 0}`);
+        updateTextIfChanged(row.querySelector('.mouse-events'), `M: ${todayStats.mouse_events || 0}`);
+        updateTextIfChanged(row.querySelector('.scroll-events'), `S: ${todayStats.scroll_events || 0}`);
+        updateTextIfChanged(row.querySelector('.idle-time'), `Idle: ${activity.idle_seconds || 0}s`);
+
+        // Update resources
+        updateTextIfChanged(row.querySelector('.cpu-usage'), `${systemMetrics.cpu_percent || 0}%`);
+        updateTextIfChanged(row.querySelector('.memory-usage'), `${systemMetrics.memory_percent || 0}%`);
+        updateTextIfChanged(row.querySelector('.disk-usage'), `${systemMetrics.disk_usage || 0}%`);
+
+        // Update applications
+        const apps = todayStats.applications_used || [];
+        updateTextIfChanged(row.querySelector('.current-app'), activity.current_application || 'No active app');
+        updateTextIfChanged(row.querySelector('.app-count'), `${apps.length} apps used`);
+
+        // Update screen time
+        const activeHours = todayStats.total_active_hours || 0;
+        const hours = Math.floor(activeHours);
+        const minutes = Math.floor((activeHours - hours) * 60);
+        updateTextIfChanged(row.querySelector('.active-time'), `Active: ${hours}h ${minutes}m`);
+        updateTextIfChanged(row.querySelector('.total-time'), `Total: ${(activeHours * 60).toFixed(0)}m`);
+
+        // Update last seen
+        updateTextIfChanged(row.querySelector('.last-seen'), 'Just now');
+    }
+
+    // Set device as offline
+    function setLiveDeviceOffline(row) {
+        const statusBadge = row.querySelector('.status-badge');
+        if (statusBadge.className !== 'badge bg-secondary status-badge') {
+            statusBadge.className = 'badge bg-secondary status-badge';
+        }
+        updateTextIfChanged(statusBadge, 'Offline');
+
+        updateTextIfChanged(row.querySelector('.last-seen'), 'Offline');
+    }
+
+    // Update live dashboard statistics
+    function updateLiveDashboardStats() {
+        const onlineDevices = document.querySelectorAll('.status-badge.bg-success').length;
+        const totalDevices = document.querySelectorAll('.status-badge').length;
+        document.getElementById('activeDevices').textContent = `${onlineDevices}/${totalDevices}`;
+
+        // Calculate average CPU usage
+        let totalCPU = 0;
+        let count = 0;
+        document.querySelectorAll('.cpu-usage').forEach(element => {
+            const cpuText = element.textContent.replace('%', '');
+            const cpu = parseInt(cpuText);
+            if (!isNaN(cpu) && cpu > 0) {
+                totalCPU += cpu;
+                count++;
+            }
+        });
+
+        const avgCPU = count > 0 ? Math.round(totalCPU / count) : 0;
+        document.getElementById('avgUsage').textContent = `${avgCPU}%`;
+
+        // Update total activity
+        let totalEvents = 0;
+        document.querySelectorAll('.keyboard-events, .mouse-events, .scroll-events').forEach(element => {
+            const match = element.textContent.match(/\d+/);
+            if (match) {
+                totalEvents += parseInt(match[0]);
+            }
+        });
+        document.getElementById('totalActivity').textContent = totalEvents;
+    }
+
+    // Load live alerts
+    function loadLiveAlerts() {
+        fetch('/api/tracking/live-alerts')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.alerts.length > 0) {
+                    displayLiveAlerts(data.alerts);
+                }
+            })
+            .catch(error => console.error('Error loading alerts:', error));
+    }
+
+    // Display live alerts
+    function displayLiveAlerts(alerts) {
+        const container = document.getElementById('liveAlertsContainer');
+        const section = document.getElementById('alertsSection');
+
+        let html = '<div class="alert-list">';
+        alerts.forEach(alert => {
+            const severityClass = alert.severity === 'warning' ? 'alert-warning' :
+                alert.severity === 'danger' ? 'alert-danger' : 'alert-info';
+            html += `
+            <div class="alert ${severityClass} alert-dismissible fade show mb-2" role="alert">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    <div>
+                        <strong>${alert.device_name}</strong>: ${alert.message}
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        });
+        html += '</div>';
+
+        container.innerHTML = html;
+        section.style.display = 'block';
+    }
+
+    // Enhanced live tracking
+    function startLiveTrackingModal(macAddress, deviceId) {
+        currentTrackingMac = macAddress;
+
+        if (liveTrackingModal) {
+            liveTrackingModal.show();
+        } else {
+            liveTrackingModal = new bootstrap.Modal(document.getElementById('liveTrackingModal'));
+            liveTrackingModal.show();
+        }
+
+        // Load initial data
+        loadLiveTrackingData(macAddress, deviceId);
+
+        // Start real-time updates for this device
+        const trackingInterval = setInterval(() => {
+            if (currentTrackingMac === macAddress && autoRefreshEnabled) {
+                loadLiveTrackingData(macAddress, deviceId);
+            } else {
+                clearInterval(trackingInterval);
+            }
+        }, 1000);
+
+        // Stop tracking when modal is closed
+        document.getElementById('liveTrackingModal').addEventListener('hidden.bs.modal', function () {
+            currentTrackingMac = null;
+            clearInterval(trackingInterval);
+
+            // Stop camera stream to release device camera
+            const cameraImg = document.getElementById('liveCameraStream');
+            if (cameraImg) {
+                cameraImg.src = '';
+                cameraImg.alt = 'Stream stopped';
+            }
+        }, { once: true });
+    }
+
+    // Load live tracking data
+    function loadLiveTrackingData(macAddress, deviceId) {
+        fetch(`/api/tracking/real-time/${macAddress}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateLiveTrackingModal(data.tracking_data, data.device_info, deviceId);
+
+                    // Update streams if relevant tabs are active
+                    const screensTab = document.querySelector('#liveScreensTab');
+                    const cameraTab = document.querySelector('#liveCameraTab');
+                    if ((screensTab && screensTab.classList.contains('active')) ||
+                        (cameraTab && cameraTab.classList.contains('active'))) {
+                        updateLiveScreens(macAddress);
+                    }
+
+                    // Check for alerts
+                    checkDeviceAlerts(data.tracking_data, data.device_info.device_name);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading live tracking data:', error);
+            });
+    }
+
+    // Check for device-specific alerts
+    function checkDeviceAlerts(trackingData, deviceName) {
+        const systemMetrics = trackingData.system_metrics || {};
+        const currentActivity = trackingData.current_activity || {};
+
+        let alerts = [];
+
+        // Check CPU usage
+        if (systemMetrics.cpu_percent > 85) {
+            alerts.push({
+                type: 'high_cpu',
+                message: `High CPU usage: ${systemMetrics.cpu_percent}%`,
+                severity: 'warning'
+            });
+        }
+
+        // Check memory usage
+        if (systemMetrics.memory_percent > 85) {
+            alerts.push({
+                type: 'high_memory',
+                message: `High memory usage: ${systemMetrics.memory_percent}%`,
+                severity: 'warning'
+            });
+        }
+
+        // Check idle time
+        if (currentActivity.idle_seconds > 600) { // 10 minutes
+            alerts.push({
+                type: 'inactive',
+                message: `Device inactive for ${Math.floor(currentActivity.idle_seconds / 60)} minutes`,
+                severity: 'info'
+            });
+        }
+
+        // Display alerts in modal
+        displayModalAlerts(alerts, deviceName);
+    }
+
+    // Display alerts in modal
+    function displayModalAlerts(alerts, deviceName) {
+        const container = document.getElementById('modalAlertsContainer');
+
+        if (alerts.length === 0) {
+            container.innerHTML = `
+            <div class="text-center py-4">
+                <i class="fas fa-check-circle fa-2x text-success mb-3"></i>
+                <p>All systems normal for ${deviceName}</p>
+            </div>
+        `;
+            return;
+        }
+
+        let html = '<div class="alert-list">';
+        alerts.forEach(alert => {
+            const severityClass = alert.severity === 'warning' ? 'alert-warning' :
+                alert.severity === 'danger' ? 'alert-danger' : 'alert-info';
+            html += `
+            <div class="alert ${severityClass} mb-2" role="alert">
+                <div class="d-flex align-items-center">
+                    <i class="fas ${alert.severity === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle'} me-2"></i>
+                    <div>${alert.message}</div>
+                </div>
+            </div>
+        `;
+        });
+        html += '</div>';
+
+        container.innerHTML = html;
+    }
+
+    // Update live tracking modal
+    function updateLiveTrackingModal(trackingData, deviceInfo, deviceId) {
+        const activity = trackingData.current_activity || {};
+        const todayStats = trackingData.today_stats || {};
+        const systemMetrics = trackingData.system_metrics || {};
+        const deviceInfoData = trackingData.device_info || {};
+
+        // Update device name
+        document.getElementById('trackingDeviceName').textContent =
+            deviceInfo.device_name || deviceInfoData.hostname || 'Unknown';
+
+        // Update real-time tab
+        updateLiveRealtimeTab(activity, todayStats, systemMetrics);
+
+        // Update device info card
+        updateLiveDeviceInfoCard(deviceInfo, deviceInfoData);
+
+        // Update resource usage card
+        updateLiveResourceUsageCard(systemMetrics);
+
+        // Update applications card
+        updateLiveApplicationsCard(todayStats, activity);
+
+        // Update top processes card (NEW)
+        updateLiveProcessesCard(systemMetrics);
+    }
+
+    // Update real-time tab for live view
+    function updateLiveRealtimeTab(activity, todayStats, systemMetrics) {
+        const idleSecondsVal = activity.idle_seconds || 0;
+        const idleMinutes = Math.floor(idleSecondsVal / 60);
+        const idleSeconds = idleSecondsVal % 60;
+
+        const html = `
+            <div class="row text-center mb-3">
+                <div class="col-4">
+                    <div class="border border-secondary rounded p-2 ${activity.keyboard_active ? 'bg-success text-white' : 'bg-dark text-muted'}">
+                        <i class="fas fa-keyboard fa-2x mb-2"></i>
+                        <div>Keyboard</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="border border-secondary rounded p-2 ${activity.mouse_active ? 'bg-success text-white' : 'bg-dark text-muted'}">
+                        <i class="fas fa-mouse fa-2x mb-2"></i>
+                        <div>Mouse</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="border border-secondary rounded p-2 ${idleSecondsVal < 300 ? 'bg-success text-white' : 'bg-warning text-dark'}">
+                        <i class="fas fa-user fa-2x mb-2"></i>
+                        <div>${idleSecondsVal < 300 ? 'Active' : 'Idle'}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <ul class="list-group list-group-flush bg-dark text-white">
+                <li class="list-group-item bg-dark text-white border-secondary d-flex justify-content-between">
+                    <span>Idle Time:</span>
+                    <span class="fw-bold">${idleMinutes}m ${idleSeconds}s</span>
+                </li>
+                <li class="list-group-item bg-dark text-white border-secondary d-flex justify-content-between">
+                    <span>Last Active:</span>
+                    <span>${activity.last_active_time || 'N/A'}</span>
+                </li>
+                <li class="list-group-item bg-dark text-white border-secondary">
+                    <div class="d-flex justify-content-between"><span>Current App:</span></div>
+                    <div class="text-end text-truncate text-info">${activity.current_application || 'N/A'}</div>
+                </li>
+                ${systemMetrics.active_window ? `
+                <li class="list-group-item bg-dark text-white border-secondary">
+                     <div class="d-flex justify-content-between"><span>Active Window:</span></div>
+                     <div class="text-end text-truncate text-warning" title="${systemMetrics.active_window.title}">${systemMetrics.active_window.title}</div>
+                </li>` : ''}
+            </ul>
+        `;
+
+        document.getElementById('liveActivityCard').innerHTML = html;
+    }
+
+    // Update device info card for live view
+    function updateLiveDeviceInfoCard(deviceInfo, deviceInfoData) {
+        const html = `
+        <p><strong>Device:</strong> ${deviceInfo.device_name || 'N/A'}</p>
+        <p><strong>Employee:</strong> ${deviceInfo.employee_name || 'N/A'}</p>
+        <p><strong>IP:</strong> <code>${deviceInfoData.ip || deviceInfo.ip_address || 'N/A'}</code></p>
+        <p><strong>MAC:</strong> ${deviceInfoData.mac_address || 'N/A'}</p>
+        <p><strong>Hostname:</strong> ${deviceInfoData.hostname || 'N/A'}</p>
+        <p><strong>System:</strong> ${deviceInfoData.system || 'N/A'}</p>
+        <p><strong>Last Seen:</strong> ${new Date().toLocaleTimeString()}</p>
+    `;
+
+        document.getElementById('liveDeviceInfoCard').innerHTML = html;
+    }
+
+    // Update resource usage card for live view
+    function updateLiveResourceUsageCard(systemMetrics) {
+        const cpuUsage = systemMetrics.cpu_percent || 0;
+        const memoryUsage = systemMetrics.memory_percent || 0;
+        const diskUsage = systemMetrics.disk_usage || 0;
+        const netSpeed = systemMetrics.network_speed; // Maybe null
+
+        let html = `
+        <div class="mb-3">
+            <div class="d-flex justify-content-between">
+                <span>CPU Usage:</span>
+                <span>${cpuUsage}%</span>
+            </div>
+            <div class="progress" style="height: 10px;">
+                <div class="progress-bar ${cpuUsage > 80 ? 'bg-danger' : cpuUsage > 60 ? 'bg-warning' : 'bg-success'}" 
+                     style="width: ${cpuUsage}%"></div>
+            </div>
+        </div>
+        <div class="mb-3">
+            <div class="d-flex justify-content-between">
+                <span>Memory Usage:</span>
+                <span>${memoryUsage}%</span>
+            </div>
+            <div class="progress" style="height: 10px;">
+                <div class="progress-bar ${memoryUsage > 80 ? 'bg-danger' : memoryUsage > 60 ? 'bg-warning' : 'bg-info'}" 
+                     style="width: ${memoryUsage}%"></div>
+            </div>
+        </div>
+        <div class="mb-3">
+            <div class="d-flex justify-content-between">
+                <span>Disk Usage:</span>
+                <span>${diskUsage}%</span>
+            </div>
+            <div class="progress" style="height: 10px;">
+                <div class="progress-bar ${diskUsage > 80 ? 'bg-danger' : diskUsage > 60 ? 'bg-warning' : 'bg-primary'}" 
+                     style="width: ${diskUsage}%"></div>
+            </div>
+        </div>
+        `;
+
+        // Add Network Speed if available
+        if (netSpeed) {
+            html += `
+            <div class="mt-3 p-2 rounded border border-secondary" style="background-color: rgba(255,255,255,0.05);">
+                <div class="d-flex justify-content-between mb-1">
+                    <small class="text-muted"><i class="fas fa-upload"></i> Upload</small>
+                    <small class="fw-bold text-info">${netSpeed.upload_speed_kbps} KB/s</small>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <small class="text-muted"><i class="fas fa-download"></i> Download</small>
+                    <small class="fw-bold text-info">${netSpeed.download_speed_kbps} KB/s</small>
+                </div>
+            </div>
+            `;
+        }
+
+        document.getElementById('liveResourceUsageCard').innerHTML = html;
+    }
+
+    // Update top processes card (NEW)
+    function updateLiveProcessesCard(systemMetrics) {
+        const processes = systemMetrics.top_processes; // Maybe null or empty
+        const container = document.getElementById('liveProcessesCard');
+
+        if (!processes || processes.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center py-3 mb-0">No process data available</p>';
+            return;
+        }
+
+        let html = `
+        <div class="table-responsive">
+            <table class="table table-sm table-dark table-striped mb-0" style="font-size: 0.85rem;">
+                <thead>
+                    <tr>
+                        <th class="text-secondary">Name</th>
+                        <th class="text-end text-secondary">CPU</th>
+                        <th class="text-end text-secondary">Mem</th>
+                    </tr>
+                </thead>
+                <tbody class="border-top-0">
+        `;
+
+        processes.forEach(proc => {
+            html += `
+            <tr>
+                <td class="text-truncate" style="max-width: 120px;" title="${proc.name}">${proc.name}</td>
+                <td class="text-end text-success fw-bold">${proc.cpu_percent.toFixed(1)}%</td>
+                <td class="text-end text-muted">${proc.memory_mb}MB</td>
+            </tr>
+            `;
+        });
+
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+    }
+
+    // Update applications card for live view
+    function updateLiveApplicationsCard(todayStats, activity) {
+        const applications = todayStats.applications_used || [];
+        const currentApp = activity.current_application || 'Unknown';
+
+        let appsHtml = '';
+        if (applications.length > 0) {
+            applications.slice(0, 10).forEach(app => {
+                appsHtml += `
+                <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+                    <span class="${app === currentApp ? 'text-primary fw-bold' : ''}">${app}</span>
+                    ${app === currentApp ? '<span class="badge bg-primary">Active</span>' : ''}
+                </div>
+            `;
+            });
+
+            if (applications.length > 10) {
+                appsHtml += `<div class="text-center mt-2"><small>+${applications.length - 10} more applications</small></div>`;
+            }
+        } else {
+            appsHtml = '<p class="text-muted text-center">No applications recorded</p>';
+        }
+
+        document.getElementById('liveApplicationsCard').innerHTML = appsHtml;
+    }
+
+    // Update screens for live view (screenshot + camera)
+    function updateLiveScreens(macAddress) {
+        const screenshotImg = document.getElementById('liveScreenshotStream');
+        const cameraImg = document.getElementById('liveCameraStream');
+        const timestamp = Date.now();
+
+        if (screenshotImg) {
+            screenshotImg.style.opacity = '0.5';
+            screenshotImg.src = `/api/tracking/stream/screenshot/${macAddress}?t=${timestamp}`;
+
+            screenshotImg.onload = function () {
+                this.style.opacity = '1';
+            };
+
+            screenshotImg.onerror = function () {
+                this.style.opacity = '0.5';
+                this.alt = 'Screenshot stream unavailable';
+                console.error('Failed to load screenshot stream');
+            };
+        }
+
+        if (cameraImg && cameraEnabled) {
+            cameraImg.style.opacity = '0.5';
+            cameraImg.src = `/api/tracking/stream/camera/${macAddress}?t=${timestamp}`;
+
+            cameraImg.onload = function () {
+                this.style.opacity = '1';
+            };
+
+            cameraImg.onerror = function () {
+                this.style.opacity = '0.5';
+                this.alt = 'Camera stream unavailable';
+                console.error('Failed to load camera stream');
+            };
+        }
+    }
+
+    // Capture screenshot
+    function captureScreenshot(macAddress) {
+        if (!currentTrackingMac) return;
+
+        const screenshotImg = document.getElementById('liveScreenshotStream');
+        if (!screenshotImg || !screenshotImg.src) {
+            console.error('No screenshot available to capture');
+            alert('No screenshot available. Please wait for the stream to load.');
+            return;
+        }
+
+        // Create a canvas to capture the current frame
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = screenshotImg.naturalWidth || 1280;
+        canvas.height = screenshotImg.naturalHeight || 720;
+
+        try {
+            // Draw the image on canvas
+            ctx.drawImage(screenshotImg, 0, 0);
+
+            // Convert to blob and show in modal
+            canvas.toBlob(function (blob) {
+                const url = URL.createObjectURL(blob);
+                currentCapturedImage = url;
+
+                const capturedImage = document.getElementById('capturedImage');
+                if (capturedImage) {
+                    capturedImage.src = url;
+                }
+
+                const captureModal = new bootstrap.Modal(document.getElementById('captureModal'));
+                captureModal.show();
+            }, 'image/jpeg', 0.95);
+        } catch (error) {
+            console.error('Error capturing screenshot:', error);
+            alert('Failed to capture screenshot. The image may not be fully loaded yet.');
+        }
+    }
+
+    // Download captured image
+    function downloadCapturedImage() {
+        if (!currentCapturedImage) return;
+
+        const link = document.createElement('a');
+        link.href = currentCapturedImage;
+        link.download = `screenshot-${currentTrackingMac}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    // Toggle camera (fixed: no auto-restart after stop)
+    function toggleCamera(macAddress) {
+        if (!currentTrackingMac) return;
+
+        fetch(`/api/tracking/toggle-camera/${macAddress}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('Camera toggled:', data.action);
+
+                    const cameraBadge = document.getElementById('cameraStatusBadge');
+                    const cameraImg = document.getElementById('liveCameraStream');
+
+                    if (data.action === 'stopped') {
+                        cameraEnabled = false;
+                        if (cameraImg) {
+                            cameraImg.src = '';
+                            cameraImg.style.opacity = '0.5';
+                            cameraImg.alt = 'Camera stopped';
+                        }
+                        if (cameraBadge) {
+                            cameraBadge.classList.remove('bg-danger');
+                            cameraBadge.classList.add('bg-secondary');
+                            cameraBadge.innerHTML = '<i class="fas fa-circle text-white"></i> Stopped';
+                        }
+                    } else if (data.action === 'started') {
+                        cameraEnabled = true;
+                        if (cameraBadge) {
+                            cameraBadge.classList.remove('bg-secondary');
+                            cameraBadge.classList.add('bg-danger');
+                            cameraBadge.innerHTML = '<i class="fas fa-circle text-white"></i> Recording';
+                        }
+                        // Load fresh camera stream once
+                        updateLiveScreens(macAddress);
+                    }
+
+                    // Show success message
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
+                    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+                    alertDiv.innerHTML = `
+                Camera ${data.action} successfully!
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+                    document.body.appendChild(alertDiv);
+
+                    setTimeout(() => alertDiv.remove(), 3000);
+                } else {
+                    console.error('Failed to toggle camera:', data.error);
+                    alert('Failed to toggle camera: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error toggling camera:', error);
+                alert('Error toggling camera. Please check the connection.');
+            });
+    }
+
+    // Search functionality
+    function filterDevices(searchTerm) {
+        const rows = document.querySelectorAll('.live-device-row');
+        searchTerm = searchTerm.toLowerCase().trim();
+
+        rows.forEach(row => {
+            const deviceName = row.getAttribute('data-device-name');
+            const employeeName = row.getAttribute('data-employee-name');
+            const status = row.querySelector('.status-badge').textContent.toLowerCase();
+
+            if (searchTerm === '') {
+                row.style.display = '';
+            } else if (
+                (deviceName && deviceName.includes(searchTerm)) ||
+                (employeeName && employeeName.includes(searchTerm)) ||
+                status.includes(searchTerm)
+            ) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    // Toggle offline devices
+    function toggleOfflineDevices(show) {
+        const rows = document.querySelectorAll('.live-device-row');
+
+        rows.forEach(row => {
+            const status = row.querySelector('.status-badge');
+            if (status.classList.contains('bg-secondary')) {
+                row.style.display = show ? '' : 'none';
+            }
+        });
+    }
+
+    // Attach live event listeners
+    function attachLiveEventListeners() {
+        // Live tracking buttons
+        document.querySelectorAll('.track-live').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const macAddress = this.getAttribute('data-mac');
+                const deviceId = this.getAttribute('data-device-id');
+                startLiveTrackingModal(macAddress, deviceId);
+            });
+        });
+
+        // Screens buttons
+        document.querySelectorAll('.view-screens').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const macAddress = this.getAttribute('data-mac');
+                const deviceId = document.querySelector(`.track-live[data-mac="${macAddress}"]`)?.getAttribute('data-device-id');
+                if (deviceId) {
+                    startLiveTrackingModal(macAddress, deviceId);
+
+                    // Switch to screens tab
+                    setTimeout(() => {
+                        const screensTab = document.querySelector('#liveTrackingTabs .nav-link[href="#liveScreensTab"]');
+                        if (screensTab) {
+                            new bootstrap.Tab(screensTab).show();
+                            updateLiveScreens(macAddress);
+                        }
+                    }, 500);
+                }
+            });
+        });
+
+        // Refresh all button
+        document.getElementById('refreshAllBtn').addEventListener('click', function () {
+            updateAllLiveDevices();
+            updateLiveDashboardStats();
+            loadLiveAlerts();
+        });
+
+        // Toggle auto-refresh
+        document.getElementById('toggleAutoRefresh').addEventListener('click', function () {
+            autoRefreshEnabled = !autoRefreshEnabled;
+            const icon = this.querySelector('i');
+            let text = this.querySelector('span');
+            if (!text) {
+                text = document.createElement('span');
+                this.appendChild(text);
+            }
+
+            if (autoRefreshEnabled) {
+                this.classList.remove('btn-outline-danger');
+                this.classList.add('btn-outline-success');
+                icon.className = 'fas fa-play';
+                text.textContent = ' Auto';
+                liveInterval = setInterval(updateAllLiveDevices, 5000);
+            } else {
+                this.classList.remove('btn-outline-success');
+                this.classList.add('btn-outline-danger');
+                icon.className = 'fas fa-pause';
+                text.textContent = ' Pause Auto';
+                clearInterval(liveInterval);
+            }
+        });
+
+        // Dismiss alerts
+        document.getElementById('dismissAlertsBtn').addEventListener('click', function () {
+            document.getElementById('alertsSection').style.display = 'none';
+        });
+
+        // Search input
+        document.getElementById('liveSearch').addEventListener('input', function () {
+            filterDevices(this.value);
+        });
+
+        // Show offline toggle
+        document.getElementById('showOfflineToggle').addEventListener('change', function () {
+            toggleOfflineDevices(this.checked);
+        });
+
+        // Tab change handlers for live modal
+        document.querySelectorAll('#liveTrackingTabs .nav-link').forEach(tab => {
+            tab.addEventListener('shown.bs.tab', function (event) {
+                const href = event.target.getAttribute('href');
+                if ((href === '#liveScreensTab' || href === '#liveCameraTab') && currentTrackingMac) {
+                    updateLiveScreens(currentTrackingMac);
+                }
+            });
+
+            // Stop stream when switching away from camera tab
+            tab.addEventListener('hidden.bs.tab', function (event) {
+                const href = event.target.getAttribute('href');
+                if (href === '#liveCameraTab') {
+                    const cameraImg = document.getElementById('liveCameraStream');
+                    if (cameraImg) {
+                        cameraImg.src = '';
+                        cameraImg.alt = 'Stream stopped';
+                    }
+                }
+            });
+        });
+
+        // Refresh screenshot button
+        document.getElementById('refreshLiveScreenshot')?.addEventListener('click', function () {
+            if (currentTrackingMac) {
+                const screenshotImg = document.getElementById('liveScreenshotStream');
+                screenshotImg.src = `/api/tracking/stream/screenshot/${currentTrackingMac}?t=${Date.now()}`;
+            }
+        });
+
+        // Capture screenshot button
+        document.getElementById('captureScreenshotBtn')?.addEventListener('click', function () {
+            if (currentTrackingMac) {
+                captureScreenshot(currentTrackingMac);
+            }
+        });
+
+        // Refresh camera button
+        document.getElementById('refreshLiveCamera')?.addEventListener('click', function () {
+            if (currentTrackingMac && cameraEnabled) {
+                const cameraImg = document.getElementById('liveCameraStream');
+                cameraImg.src = `/api/tracking/stream/camera/${currentTrackingMac}?t=${Date.now()}`;
+            }
+        });
+
+        // Toggle camera button
+        document.getElementById('toggleCameraBtn')?.addEventListener('click', function () {
+            if (currentTrackingMac) {
+                toggleCamera(currentTrackingMac);
+            }
+        });
+
+        // Download captured image
+        document.getElementById('downloadCaptureBtn')?.addEventListener('click', function () {
+            downloadCapturedImage();
+        });
+    }
+
+    // Clean up when leaving page
+    window.addEventListener('beforeunload', function () {
+        if (liveInterval) {
+            clearInterval(liveInterval);
+        }
+    });
+</script>
+
+<style>
+    /* Add some custom styles for live tracking */
+    .live-device-row:hover {
+        background-color: rgba(0, 123, 255, 0.05) !important;
+    }
+
+    .status-badge {
+        font-size: 0.75em;
+        padding: 0.25em 0.5em;
+    }
+
+    .resource-usage small {
+        font-size: 0.85em;
+    }
+
+    .activity-indicators .badge {
+        font-size: 0.7em;
+        padding: 0.2em 0.4em;
+    }
+
+    #liveAlertsContainer .alert {
+        margin-bottom: 0.5rem;
+        padding: 0.5rem 1rem;
+    }
+
+    #alertsSection {
+        animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes slideDown {
+        from {
+            transform: translateY(-10px);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+</style>
+{% endblock %}

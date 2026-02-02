@@ -1,0 +1,669 @@
+{% extends "base.html" %}
+
+{% block title %}Reports - Device Monitoring{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Reports - Tactical Theme (Minimal Overrides) */
+
+    /* Stat Cards */
+    .stat-card {
+        background: var(--tactical-bg-surface);
+        border-left: 3px solid var(--tactical-accent);
+        border-radius: var(--tactical-radius-md);
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        transition: var(--tactical-transition);
+    }
+
+    .stat-card:hover {
+        background: var(--tactical-bg-elevated);
+        box-shadow: var(--tactical-shadow-accent);
+    }
+
+    .stat-card h3 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--tactical-accent-bright);
+        font-family: 'Orbitron', monospace;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-card p {
+        color: var(--tactical-text-muted);
+        font-size: 0.875rem;
+        margin: 0;
+    }
+
+    .stat-card.primary {
+        border-left-color: var(--tactical-accent);
+    }
+
+    .stat-card.success {
+        border-left-color: var(--tactical-success);
+    }
+
+    .stat-card.danger {
+        border-left-color: var(--tactical-danger);
+    }
+
+    .stat-card.warning {
+        border-left-color: var(--tactical-warning);
+    }
+
+    /* Searchable Select Styles */
+    .search-select-container {
+        position: relative;
+    }
+
+    .search-select-input {
+        background: var(--tactical-bg-input);
+        color: var(--tactical-text-primary);
+        border: 1px solid var(--tactical-border);
+        border-radius: var(--tactical-radius-sm);
+        width: 100%;
+        padding: 0.75rem 2.5rem 0.75rem 1rem;
+        /* Better padding */
+        cursor: pointer;
+        font-family: 'JetBrains Mono', monospace;
+        /* Monospaced for tech look */
+        transition: all 0.3s ease;
+    }
+
+    .search-select-input:focus {
+        border-color: var(--tactical-accent);
+        box-shadow: 0 0 0 2px rgba(0, 212, 170, 0.2);
+        outline: none;
+    }
+
+    .search-select-icon {
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--tactical-text-muted);
+        pointer-events: none;
+    }
+
+    .search-select-dropdown {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background: var(--tactical-bg-surface);
+        border: 1px solid var(--tactical-border);
+        border-radius: var(--tactical-radius-sm);
+        margin-top: 0.25rem;
+        max-height: 300px;
+        overflow-y: auto;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .search-select-dropdown.show {
+        display: block;
+    }
+
+    .search-select-item {
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        transition: background 0.2s;
+    }
+
+    .search-select-item:last-child {
+        border-bottom: none;
+    }
+
+    .search-select-item:hover,
+    .search-select-item.selected {
+        background: rgba(0, 212, 170, 0.1);
+        color: var(--tactical-accent-bright);
+    }
+
+    .search-select-item .device-ip {
+        font-family: 'JetBrains Mono', monospace;
+        color: var(--tactical-accent);
+        font-size: 0.85em;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="container-fluid">
+        <h3><i class="fas fa-chart-bar"></i> Reports & Analytics</h3>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-line"></i> Device Performance Reports</h5>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row align-items-end mb-4">
+                        <div class="col-md-5">
+                            <label for="deviceSearch" class="form-label text-uppercase text-muted small fw-bold">Select
+                                Device</label>
+                            <div class="search-select-container">
+                                <input type="text" class="search-select-input" id="deviceSearch"
+                                    placeholder="Search Device..." autocomplete="off">
+                                <i class="fas fa-search search-select-icon"></i>
+                                <div class="search-select-dropdown" id="deviceList">
+                                    <div class="search-select-item disabled">Loading...</div>
+                                </div>
+                                <input type="hidden" id="selectedDeviceIp">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="periodSelect" class="form-label text-uppercase text-muted small fw-bold">Time
+                                Period</label>
+                            <select class="form-select" id="periodSelect"
+                                style="padding: 0.75rem 1rem; background-color: var(--tactical-bg-input); border-color: var(--tactical-border); color: var(--tactical-text-primary);">
+                                <option value="24h">Last 24 Hours</option>
+                                <option value="7d">Last 7 Days</option>
+                                <option value="30d">Last 30 Days</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-primary w-100" id="generateReport"
+                                style="padding: 0.75rem; font-weight: 600; letter-spacing: 0.5px;">
+                                <i class="fas fa-bolt"></i> GENERATE
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="reportResults">
+                        <div class="empty-state text-center py-5">
+                            <div class="mb-3">
+                                <i class="fas fa-chart-pie fa-4x" style="color: var(--tactical-border);"></i>
+                            </div>
+                            <h5 class="text-muted">No Report Generated</h5>
+                            <p class="text-muted small">Select a device and time period above to view analytics.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-calendar-day"></i> Daily Summary</h5>
+                </div>
+                <div class="card-body p-4">
+                    <div id="dailyReport">
+                        <div class="empty-state">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>Loading daily report...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-history"></i> Recent Activity</h5>
+                </div>
+                <div class="card-body p-4">
+                    <div id="recentActivity">
+                        <div class="empty-state">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>Loading recent activity...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        loadDevices();
+        loadDailyReport();
+        loadRecentActivity();
+
+        document.getElementById('generateReport').addEventListener('click', generateReport);
+        document.getElementById('periodSelect').addEventListener('change', generateReport);
+
+
+        // Search & Select Logic
+        const searchInput = document.getElementById('deviceSearch');
+        const deviceList = document.getElementById('deviceList');
+        const hiddenInput = document.getElementById('selectedDeviceIp');
+        let allDevices = [];
+
+        // Show dropdown on focus
+        searchInput.addEventListener('focus', () => {
+            deviceList.classList.add('show');
+            filterDevices(searchInput.value);
+        });
+
+        // Hide dropdown on click outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.search-select-container')) {
+                deviceList.classList.remove('show');
+            }
+        });
+
+        // Filter on type
+        searchInput.addEventListener('keyup', (e) => {
+            filterDevices(e.target.value);
+        });
+
+        function filterDevices(query) {
+            const lowerQuery = query.toLowerCase();
+            const filtered = allDevices.filter(d =>
+                d.device_name.toLowerCase().includes(lowerQuery) ||
+                d.device_ip.includes(lowerQuery)
+            );
+            renderDeviceList(filtered);
+        }
+
+        function renderDeviceList(devices) {
+            deviceList.innerHTML = '';
+
+            if (devices.length === 0) {
+                deviceList.innerHTML = '<div class="search-select-item disabled" style="color:var(--tactical-text-muted); cursor:default;">No devices found</div>';
+                return;
+            }
+
+            devices.forEach(device => {
+                const div = document.createElement('div');
+                div.className = 'search-select-item';
+                div.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="device-name">${device.device_name}</span>
+                        <span class="device-ip">${device.device_ip}</span>
+                    </div>
+                `;
+                div.addEventListener('click', () => {
+                    selectDevice(device);
+                });
+                deviceList.appendChild(div);
+            });
+        }
+
+        function selectDevice(device) {
+            searchInput.value = `${device.device_name} (${device.device_ip})`;
+            hiddenInput.value = device.device_ip;
+            deviceList.classList.remove('show');
+        }
+
+        function loadDevices() {
+            fetch('/api/devices')
+                .then(response => response.json())
+                .then(devices => {
+                    allDevices = devices; // Store globally
+                    renderDeviceList(devices);
+                    // Pre-select first if none selected? No, leave empty.
+                })
+                .catch(error => {
+                    console.error('Error loading devices:', error);
+                    deviceList.innerHTML = '<div class="search-select-item disabled">Error loading devices</div>';
+                });
+        }
+
+        function generateReport() {
+            const deviceIp = document.getElementById('selectedDeviceIp').value;
+            const period = document.getElementById('periodSelect').value;
+
+            if (!deviceIp) {
+                alert('Please select a device from the list');
+                return;
+            }
+
+            fetch(`/api/device_statistics?device_ip=${deviceIp}&period=${period}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('reportResults').innerHTML = `
+                        <div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> ${data.error}</div>
+                    `;
+                        return;
+                    }
+
+                    displayReport(data, deviceIp, period);
+                })
+                .catch(error => {
+                    console.error('Error generating report:', error);
+                    document.getElementById('reportResults').innerHTML = `
+                    <div class="alert alert-danger"><i class="fas fa-times-circle"></i> Error generating report: ${error.message}</div>
+                `;
+                });
+        }
+
+        function displayReport(stats, deviceIp, period) {
+            const uptimeColor = stats.uptime_percentage >= 90 ? 'success' :
+                stats.uptime_percentage >= 80 ? 'warning' : 'danger';
+
+            const periodText = {
+                '24h': 'Last 24 Hours',
+                '7d': 'Last 7 Days',
+                '30d': 'Last 30 Days'
+            }[period] || period;
+
+            const html = `
+            <div class="mb-4">
+                <h4 class="report-title"><i class="fas fa-network-wired"></i> ${deviceIp}</h4>
+                <p class="report-subtitle"><i class="fas fa-calendar"></i> ${periodText}</p>
+            </div>
+            
+            <div class="row mb-4">
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card primary">
+                        <i class="fas fa-chart-line fa-2x mb-2" style="color: var(--primary);"></i>
+                        <h3>${stats.total_scans}</h3>
+                        <p>Total Scans</p>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card success">
+                        <i class="fas fa-check-circle fa-2x mb-2" style="color: var(--success);"></i>
+                        <h3>${stats.online_count}</h3>
+                        <p>Online</p>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card danger">
+                        <i class="fas fa-times-circle fa-2x mb-2" style="color: var(--danger);"></i>
+                        <h3>${stats.offline_count}</h3>
+                        <p>Offline</p>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card ${uptimeColor}">
+                        <i class="fas fa-heartbeat fa-2x mb-2" style="color: var(--${uptimeColor});"></i>
+                        <h3>${stats.uptime_percentage.toFixed(1)}%</h3>
+                        <p>Uptime</p>
+                    </div>
+                </div>
+            </div>
+            
+
+            ${stats.avg_latency ? `
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-tachometer-alt"></i> Latency (ms)</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="latencyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-signal"></i> Availability (%)</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="availabilityChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <h5 style="color: var(--primary); font-weight: 700; margin-bottom: 1rem;">
+                    <i class="fas fa-table"></i> Latency Statistics
+                </h5>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th><i class="fas fa-average"></i> Average</th>
+                                <th><i class="fas fa-arrow-down"></i> Minimum</th>
+                                <th><i class="fas fa-arrow-up"></i> Maximum</th>
+                                <th><i class="fas fa-chart-area"></i> Std Dev</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>${stats.avg_latency.toFixed(2)} ms</strong></td>
+                                <td>${stats.min_latency.toFixed(2)} ms</td>
+                                <td>${stats.max_latency.toFixed(2)} ms</td>
+                                <td>${stats.latency_std_dev ? stats.latency_std_dev.toFixed(2) + ' ms' : 'N/A'}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            ` : ''}
+        `;
+
+            document.getElementById('reportResults').innerHTML = html;
+
+            // Fetch and render charts if latency exists
+            if (stats.avg_latency) {
+                renderCharts(deviceIp, period);
+            }
+        }
+
+        // Chart instances storage
+        let latencyChart = null;
+        let availabilityChart = null;
+
+        function renderCharts(deviceIp, period) {
+            // Fetch Latency Data
+            fetch(`/api/monitoring/metrics?device_ip=${deviceIp}&metric_name=network_latency_ms&time_range=last_${period}`)
+                .then(res => res.json())
+                .then(data => {
+                    const ctx = document.getElementById('latencyChart').getContext('2d');
+
+                    // Destroy existing chart if needed
+                    if (latencyChart) latencyChart.destroy();
+
+                    if (!data.data || data.data.length === 0) {
+                        console.log("No latency data found.");
+                        return;
+                    }
+
+                    const labels = data.data.map(d => new Date(d.timestamp).toLocaleTimeString());
+                    const values = data.data.map(d => d.value);
+
+                    latencyChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Latency (ms)',
+                                data: values,
+                                borderColor: '#00d4aa',
+                                backgroundColor: 'rgba(0, 212, 170, 0.1)',
+                                borderWidth: 2,
+                                tension: 0.3,
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: { color: 'rgba(255,255,255,0.05)' }
+                                },
+                                x: {
+                                    grid: { display: false }
+                                }
+                            }
+                        }
+                    });
+                });
+
+            // Fetch Availability Data
+            fetch(`/api/monitoring/metrics?device_ip=${deviceIp}&metric_name=device_availability&time_range=last_${period}`)
+                .then(res => res.json())
+                .then(data => {
+                    const ctx = document.getElementById('availabilityChart').getContext('2d');
+
+                    if (availabilityChart) availabilityChart.destroy();
+
+                    if (!data.data || data.data.length === 0) {
+                        console.log("No availability data found.");
+                        return;
+                    }
+
+                    const labels = data.data.map(d => new Date(d.timestamp).toLocaleTimeString());
+                    // Convert 0/1 to Percentage (0/100)
+                    const values = data.data.map(d => d.value * 100);
+
+                    availabilityChart = new Chart(ctx, {
+                        type: 'line', // Stepped line for availability
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Availability (%)',
+                                data: values,
+                                borderColor: '#00ff88',
+                                backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                                borderWidth: 2,
+                                stepped: true,
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            scales: {
+                                y: {
+                                    min: 0,
+                                    max: 105, // Slight buffer
+                                    grid: { color: 'rgba(255,255,255,0.05)' },
+                                    ticks: {
+                                        callback: function (value) { return value + "%" }
+                                    }
+                                },
+                                x: {
+                                    grid: { display: false }
+                                }
+                            }
+                        }
+                    });
+                });
+        }
+
+        function loadDailyReport() {
+            fetch('/api/daily_report')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('dailyReport').innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <p>${data.error}</p>
+                        </div>
+                    `;
+                        return;
+                    }
+
+                    let html = `
+                    <div class="mb-3">
+                        <p><strong><i class="fas fa-calendar"></i> Date:</strong> ${data.date}</p>
+                        <p><strong><i class="fas fa-tv"></i> Monitored Devices:</strong> ${data.total_monitored_devices}</p>
+                    </div>
+                    <hr>
+                `;
+
+                    if (data.devices && data.devices.length > 0) {
+                        data.devices.forEach(device => {
+                            html += `
+                            <div class="activity-item">
+                                <strong><i class="fas fa-server"></i> ${device.device_name}</strong>
+                                <small>
+                                    <i class="fas fa-network-wired"></i> ${device.device_ip} | 
+                                    <i class="fas fa-heartbeat"></i> Uptime: ${device.stats.uptime_percentage.toFixed(1)}% | 
+                                    <i class="fas fa-chart-line"></i> Scans: ${device.stats.total_scans}
+                                </small>
+                            </div>
+                        `;
+                        });
+                    } else {
+                        html += '<div class="empty-state"><p>No data available for today.</p></div>';
+                    }
+
+                    document.getElementById('dailyReport').innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error loading daily report:', error);
+                    document.getElementById('dailyReport').innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-times-circle"></i>
+                        <p>Error loading report</p>
+                    </div>
+                `;
+                });
+        }
+
+        function loadRecentActivity() {
+            fetch('/api/monitoring/status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('recentActivity').innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <p>${data.error}</p>
+                        </div>
+                    `;
+                        return;
+                    }
+
+                    let html = '';
+                    const recentDevices = data.devices.slice(0, 5);
+
+                    if (recentDevices.length > 0) {
+                        recentDevices.forEach(device => {
+                            const isOnline = device.status === 'Online';
+                            const statusBadge = isOnline
+                                ? '<span class="badge bg-success"><i class="fas fa-wifi"></i> Online</span>'
+                                : '<span class="badge bg-danger"><i class="fas fa-times-circle"></i> Offline</span>';
+
+                            html += `
+                            <div class="activity-item d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong><i class="fas fa-server"></i> ${device.device_name}</strong>
+                                    <small><i class="fas fa-network-wired"></i> ${device.device_ip}</small>
+                                </div>
+                                <div class="text-end">
+                                    ${statusBadge}
+                                    ${device.latency ? `<small class="d-block mt-2"><i class="fas fa-tachometer-alt"></i> ${device.latency} ms</small>` : ''}
+                                </div>
+                            </div>
+                        `;
+                        });
+                    } else {
+                        html = '<div class="empty-state"><p>No recent activity</p></div>';
+                    }
+
+                    document.getElementById('recentActivity').innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error loading recent activity:', error);
+                    document.getElementById('recentActivity').innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-times-circle"></i>
+                        <p>Error loading activity</p>
+                    </div>
+                `;
+                });
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,128 @@
+/* file name: static/css/session_warning.css */
+.session-warning-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 99999;
+    animation: fadeIn 0.3s ease;
+}
+
+.session-warning-content {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: slideIn 0.3s ease;
+}
+
+.session-warning-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.session-warning-header i {
+    color: #ff9800;
+    font-size: 24px;
+    margin-right: 15px;
+}
+
+.session-warning-header h4 {
+    margin: 0;
+    color: #333;
+    font-weight: 600;
+}
+
+.session-warning-body {
+    margin-bottom: 25px;
+}
+
+.session-warning-body p {
+    margin-bottom: 10px;
+    color: #555;
+    line-height: 1.5;
+}
+
+.session-warning-body .countdown {
+    font-weight: bold;
+    color: #e74c3c;
+    font-size: 1.2em;
+    padding: 0 5px;
+}
+
+.session-warning-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.session-warning-footer .btn {
+    min-width: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: 500;
+}
+
+.session-warning-footer .btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+}
+
+.session-warning-footer .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.session-warning-footer .btn-secondary {
+    background: #6c757d;
+    border: none;
+}
+
+.session-warning-footer .btn-secondary:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive design */
+@media (max-width: 576px) {
+    .session-warning-content {
+        width: 95%;
+        padding: 20px;
+    }
+    
+    .session-warning-footer {
+        flex-direction: column;
+    }
+    
+    .session-warning-footer .btn {
+        width: 100%;
+    }
+}

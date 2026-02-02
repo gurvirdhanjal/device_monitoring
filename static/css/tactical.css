@@ -1,0 +1,905 @@
+/* ============================================================
+   TACTICAL DARK THEME - Industrial Grade UI Design System
+   ============================================================ */
+
+/* ============================================================
+   CSS VARIABLES - TACTICAL COLOR PALETTE
+   ============================================================ */
+:root {
+    /* Background Colors */
+    --tactical-bg-darkest: #0a0a0f;
+    --tactical-bg-dark: #0d0d14;
+    --tactical-bg-medium: #12121a;
+    --tactical-bg-light: #1a1a24;
+    --tactical-bg-surface: #1e1e2a;
+    --tactical-bg-elevated: #252532;
+    --tactical-bg-card: linear-gradient(145deg, #1e1e2a 0%, #252532 100%);
+
+    /* Accent Colors */
+    --tactical-accent: #00d4aa;
+    --tactical-accent-bright: #00ffc8;
+    --tactical-accent-dim: #00a080;
+    --tactical-accent-glow: rgba(0, 212, 170, 0.4);
+    --tactical-accent-subtle: rgba(0, 212, 170, 0.1);
+
+    /* Status Colors */
+    --tactical-success: #00ff88;
+    --tactical-success-dim: #00cc6a;
+    --tactical-success-glow: rgba(0, 255, 136, 0.3);
+
+    --tactical-danger: #ff3b5c;
+    --tactical-danger-dim: #cc2f4a;
+    --tactical-danger-glow: rgba(255, 59, 92, 0.3);
+
+    --tactical-warning: #ffaa00;
+    --tactical-warning-dim: #cc8800;
+    --tactical-warning-glow: rgba(255, 170, 0, 0.3);
+
+    --tactical-info: #00aaff;
+    --tactical-info-dim: #0088cc;
+    --tactical-info-glow: rgba(0, 170, 255, 0.3);
+
+    /* Text Colors */
+    --tactical-text-primary: #ffffff;
+    --tactical-text-secondary: #ffffff;
+    --tactical-text-muted: #00ffc8;
+    --tactical-text-dim: #b8b8c8;
+
+    /* Border Colors */
+    --tactical-border: rgba(255, 255, 255, 0.08);
+    --tactical-border-accent: rgba(0, 212, 170, 0.3);
+    --tactical-border-bright: rgba(0, 212, 170, 0.6);
+
+    /* Shadows */
+    --tactical-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    --tactical-shadow-accent: 0 0 20px rgba(0, 212, 170, 0.2);
+    --tactical-glow-sm: 0 0 10px;
+    --tactical-glow-md: 0 0 20px;
+    --tactical-glow-lg: 0 0 40px;
+
+    /* Spacing */
+    --tactical-radius-sm: 4px;
+    --tactical-radius-md: 8px;
+    --tactical-radius-lg: 12px;
+
+    /* Transitions */
+    --tactical-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --tactical-transition-fast: all 0.15s ease;
+}
+
+/* ============================================================
+   BASE STYLES
+   ============================================================ */
+body.tactical-theme {
+    background: var(--tactical-bg-darkest) !important;
+    background-image:
+        linear-gradient(rgba(0, 212, 170, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 212, 170, 0.02) 1px, transparent 1px) !important;
+    background-size: 50px 50px !important;
+    color: var(--tactical-text-primary);
+    font-family: 'Rajdhani', 'Segoe UI', sans-serif;
+    min-height: 100vh;
+}
+
+/* ============================================================
+   TACTICAL NAVBAR
+   ============================================================ */
+.tactical-navbar {
+    background: linear-gradient(180deg, var(--tactical-bg-medium) 0%, var(--tactical-bg-dark) 100%) !important;
+    border-bottom: 1px solid var(--tactical-border-accent);
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 212, 170, 0.1);
+    padding: 0.5rem 1rem;
+    position: relative;
+}
+
+.tactical-navbar::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--tactical-accent), transparent);
+}
+
+.tactical-navbar .navbar-brand {
+    color: var(--tactical-accent-bright) !important;
+    font-family: 'Orbitron', 'Rajdhani', monospace;
+    font-weight: 700;
+    font-size: 1.4rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-shadow: 0 0 10px var(--tactical-accent-glow);
+}
+
+.tactical-navbar .navbar-brand i {
+    color: var(--tactical-accent);
+    margin-right: 0.5rem;
+}
+
+.tactical-navbar .nav-link {
+    color: var(--tactical-text-secondary) !important;
+    font-weight: 600;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 0.6rem 1rem !important;
+    margin: 0 2px;
+    border-radius: var(--tactical-radius-sm);
+    transition: var(--tactical-transition);
+    position: relative;
+}
+
+.tactical-navbar .nav-link:hover {
+    color: var(--tactical-accent-bright) !important;
+    background: var(--tactical-accent-subtle);
+    text-shadow: 0 0 8px var(--tactical-accent-glow);
+}
+
+.tactical-navbar .nav-link.active {
+    color: var(--tactical-accent-bright) !important;
+    background: rgba(0, 212, 170, 0.15);
+    border: 1px solid var(--tactical-border-accent);
+}
+
+.tactical-navbar .nav-link i {
+    margin-right: 0.4rem;
+}
+
+.tactical-navbar .dropdown-menu {
+    background: var(--tactical-bg-elevated);
+    border: 1px solid var(--tactical-border-accent);
+    border-radius: var(--tactical-radius-md);
+    box-shadow: var(--tactical-shadow), var(--tactical-shadow-accent);
+    padding: 0.5rem;
+}
+
+.tactical-navbar .dropdown-item {
+    color: var(--tactical-text-secondary);
+    font-weight: 500;
+    padding: 0.6rem 1rem;
+    border-radius: var(--tactical-radius-sm);
+    transition: var(--tactical-transition-fast);
+}
+
+.tactical-navbar .dropdown-item:hover {
+    background: var(--tactical-accent-subtle);
+    color: var(--tactical-accent-bright);
+}
+
+.tactical-navbar .dropdown-item i {
+    margin-right: 0.5rem;
+    width: 18px;
+}
+
+.tactical-navbar .dropdown-divider {
+    border-color: var(--tactical-border);
+    margin: 0.4rem 0;
+}
+
+/* ============================================================
+   TACTICAL CARDS
+   ============================================================ */
+.tactical-card {
+    background: var(--tactical-bg-card);
+    border: 1px solid var(--tactical-border);
+    border-radius: var(--tactical-radius-lg);
+    box-shadow: var(--tactical-shadow);
+    position: relative;
+    overflow: hidden;
+    transition: var(--tactical-transition);
+}
+
+.tactical-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--tactical-accent), transparent);
+    opacity: 0.5;
+}
+
+.tactical-card:hover {
+    border-color: var(--tactical-border-accent);
+    box-shadow: var(--tactical-shadow), var(--tactical-shadow-accent);
+    transform: translateY(-2px);
+}
+
+.tactical-card .card-header {
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid var(--tactical-border);
+    color: var(--tactical-text-primary);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 0.9rem;
+    padding: 0.75rem 1rem;
+}
+
+.tactical-card .card-header i {
+    color: var(--tactical-accent);
+    margin-right: 0.5rem;
+}
+
+.tactical-card .card-body {
+    padding: 1rem;
+    color: var(--tactical-text-secondary);
+}
+
+.tactical-card .card-footer {
+    background: rgba(0, 0, 0, 0.2);
+    border-top: 1px solid var(--tactical-border);
+    padding: 0.75rem 1.25rem;
+}
+
+/* Stat Cards */
+.tactical-stat-card {
+    background: var(--tactical-bg-card);
+    border: 1px solid var(--tactical-border);
+    border-radius: var(--tactical-radius-lg);
+    padding: 1.25rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.tactical-stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: var(--tactical-accent);
+}
+
+.tactical-stat-card.success::before {
+    background: var(--tactical-success);
+}
+
+.tactical-stat-card.danger::before {
+    background: var(--tactical-danger);
+}
+
+.tactical-stat-card.warning::before {
+    background: var(--tactical-warning);
+}
+
+.tactical-stat-card.info::before {
+    background: var(--tactical-info);
+}
+
+.tactical-stat-card .stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    font-family: 'Orbitron', monospace;
+    color: var(--tactical-text-primary);
+    line-height: 1;
+    margin-bottom: 0.5rem;
+}
+
+.tactical-stat-card .stat-label {
+    color: var(--tactical-text-muted);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.tactical-stat-card .stat-icon {
+    position: absolute;
+    right: 1.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 2.5rem;
+    color: var(--tactical-accent);
+    opacity: 0.2;
+}
+
+/* ============================================================
+   TACTICAL BUTTONS
+   ============================================================ */
+.tactical-btn {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 0.6rem 1.25rem;
+    border-radius: var(--tactical-radius-sm);
+    border: 1px solid transparent;
+    transition: var(--tactical-transition);
+    position: relative;
+    overflow: hidden;
+}
+
+.tactical-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    transition: left 0.5s;
+}
+
+.tactical-btn:hover::before {
+    left: 100%;
+}
+
+.tactical-btn-primary {
+    background: var(--tactical-accent-dim);
+    border-color: var(--tactical-accent);
+    color: var(--tactical-bg-darkest);
+}
+
+.tactical-btn-primary:hover {
+    background: var(--tactical-accent);
+    box-shadow: var(--tactical-glow-md) var(--tactical-accent-glow);
+    transform: translateY(-2px);
+    color: var(--tactical-bg-darkest);
+}
+
+.tactical-btn-secondary {
+    background: transparent;
+    border-color: var(--tactical-text-muted);
+    color: var(--tactical-text-secondary);
+}
+
+.tactical-btn-secondary:hover {
+    border-color: var(--tactical-accent);
+    color: var(--tactical-accent);
+    background: var(--tactical-accent-subtle);
+}
+
+.tactical-btn-danger {
+    background: rgba(255, 59, 92, 0.2);
+    border-color: var(--tactical-danger);
+    color: var(--tactical-danger);
+}
+
+.tactical-btn-danger:hover {
+    background: var(--tactical-danger);
+    color: white;
+    box-shadow: var(--tactical-glow-md) var(--tactical-danger-glow);
+}
+
+.tactical-btn-success {
+    background: rgba(0, 255, 136, 0.2);
+    border-color: var(--tactical-success);
+    color: var(--tactical-success);
+}
+
+.tactical-btn-success:hover {
+    background: var(--tactical-success);
+    color: var(--tactical-bg-darkest);
+    box-shadow: var(--tactical-glow-md) var(--tactical-success-glow);
+}
+
+.tactical-btn-warning {
+    background: rgba(255, 170, 0, 0.2);
+    border-color: var(--tactical-warning);
+    color: var(--tactical-warning);
+}
+
+.tactical-btn-warning:hover {
+    background: var(--tactical-warning);
+    color: var(--tactical-bg-darkest);
+    box-shadow: var(--tactical-glow-md) var(--tactical-warning-glow);
+}
+
+.tactical-btn-info {
+    background: rgba(0, 170, 255, 0.2);
+    border-color: var(--tactical-info);
+    color: var(--tactical-info);
+}
+
+.tactical-btn-info:hover {
+    background: var(--tactical-info);
+    color: var(--tactical-bg-darkest);
+    box-shadow: var(--tactical-glow-md) var(--tactical-info-glow);
+}
+
+.tactical-btn-outline {
+    background: transparent;
+    border-color: var(--tactical-border-accent);
+    color: var(--tactical-accent);
+}
+
+.tactical-btn-outline:hover {
+    background: var(--tactical-accent-subtle);
+    border-color: var(--tactical-accent);
+}
+
+/* Small buttons */
+.tactical-btn-sm {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.75rem;
+}
+
+/* ============================================================
+   TACTICAL TABLES
+   ============================================================ */
+.tactical-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.tactical-table thead th {
+    background: var(--tactical-bg-dark);
+    color: var(--tactical-accent);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 0.8rem;
+    padding: 1rem;
+    border-bottom: 2px solid var(--tactical-border-accent);
+    text-align: left;
+}
+
+.tactical-table tbody tr {
+    background: var(--tactical-bg-surface);
+    transition: var(--tactical-transition-fast);
+}
+
+.tactical-table tbody tr:hover {
+    background: rgba(0, 212, 170, 0.15);
+    box-shadow: inset 0 0 15px rgba(0, 212, 170, 0.05);
+    color: var(--tactical-text-primary);
+}
+
+.tactical-table tbody tr:nth-child(even) {
+    background: var(--tactical-bg-medium);
+}
+
+.tactical-table tbody tr:nth-child(even):hover {
+    background: var(--tactical-bg-elevated);
+}
+
+.tactical-table tbody td {
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid var(--tactical-border);
+    color: var(--tactical-text-secondary);
+    vertical-align: middle;
+}
+
+.tactical-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* ============================================================
+   TACTICAL FORMS
+   ============================================================ */
+.tactical-input {
+    background: var(--tactical-bg-dark);
+    border: 1px solid var(--tactical-border);
+    border-radius: var(--tactical-radius-sm);
+    color: var(--tactical-text-primary);
+    padding: 0.75rem 1rem;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1rem;
+    transition: var(--tactical-transition);
+    width: 100%;
+}
+
+.tactical-input:focus {
+    outline: none;
+    border-color: var(--tactical-accent);
+    box-shadow: 0 0 0 3px var(--tactical-accent-subtle), var(--tactical-glow-sm) var(--tactical-accent-glow);
+    background: var(--tactical-bg-medium);
+}
+
+.tactical-input::placeholder {
+    color: var(--tactical-text-dim);
+}
+
+.tactical-label {
+    color: var(--tactical-text-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.tactical-select {
+    background: var(--tactical-bg-dark);
+    border: 1px solid var(--tactical-border);
+    border-radius: var(--tactical-radius-sm);
+    color: var(--tactical-text-primary);
+    padding: 0.75rem 1rem;
+    font-family: 'Rajdhani', sans-serif;
+    cursor: pointer;
+}
+
+.tactical-select:focus {
+    outline: none;
+    border-color: var(--tactical-accent);
+    box-shadow: 0 0 0 3px var(--tactical-accent-subtle);
+}
+
+/* ============================================================
+   TACTICAL BADGES
+   ============================================================ */
+.tactical-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-radius: var(--tactical-radius-sm);
+    border: 1px solid;
+}
+
+.tactical-badge-success {
+    background: rgba(0, 255, 136, 0.15);
+    border-color: var(--tactical-success);
+    color: var(--tactical-success);
+}
+
+.tactical-badge-danger {
+    background: rgba(255, 59, 92, 0.15);
+    border-color: var(--tactical-danger);
+    color: var(--tactical-danger);
+}
+
+.tactical-badge-warning {
+    background: rgba(255, 170, 0, 0.15);
+    border-color: var(--tactical-warning);
+    color: var(--tactical-warning);
+}
+
+.tactical-badge-info {
+    background: rgba(0, 170, 255, 0.15);
+    border-color: var(--tactical-info);
+    color: var(--tactical-info);
+}
+
+.tactical-badge-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--tactical-text-muted);
+    color: var(--tactical-text-muted);
+}
+
+/* Online/Offline status with pulse */
+.tactical-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.tactical-status::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: tactical-pulse 2s infinite;
+}
+
+.tactical-status.offline::before {
+    animation: none;
+    opacity: 0.5;
+}
+
+@keyframes tactical-pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+        box-shadow: 0 0 0 0 currentColor;
+    }
+
+    50% {
+        opacity: 0.7;
+        box-shadow: 0 0 0 4px transparent;
+    }
+}
+
+/* ============================================================
+   TACTICAL MODALS
+   ============================================================ */
+.tactical-modal .modal-content {
+    background: var(--tactical-bg-surface);
+    border: 1px solid var(--tactical-border-accent);
+    border-radius: var(--tactical-radius-lg);
+    box-shadow: var(--tactical-shadow), 0 0 60px rgba(0, 212, 170, 0.1);
+}
+
+.tactical-modal .modal-header {
+    background: linear-gradient(180deg, var(--tactical-bg-elevated) 0%, var(--tactical-bg-surface) 100%);
+    border-bottom: 1px solid var(--tactical-border-accent);
+    padding: 1.25rem 1.5rem;
+}
+
+.tactical-modal .modal-title {
+    color: var(--tactical-accent-bright);
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.tactical-modal .modal-title i {
+    margin-right: 0.5rem;
+}
+
+.tactical-modal .btn-close {
+    filter: invert(1) brightness(0.8);
+    opacity: 0.5;
+    transition: var(--tactical-transition-fast);
+}
+
+.tactical-modal .btn-close:hover {
+    opacity: 1;
+}
+
+.tactical-modal .modal-body {
+    padding: 1.5rem;
+    color: var(--tactical-text-secondary);
+}
+
+.tactical-modal .modal-footer {
+    background: var(--tactical-bg-dark);
+    border-top: 1px solid var(--tactical-border);
+    padding: 1rem 1.5rem;
+}
+
+/* Fullscreen modal adjustments */
+.tactical-modal.modal-fullscreen .modal-content {
+    background: var(--tactical-bg-darkest);
+    border: none;
+    border-radius: 0;
+}
+
+/* ============================================================
+   TACTICAL ALERTS
+   ============================================================ */
+.tactical-alert {
+    background: var(--tactical-bg-surface);
+    border: 1px solid;
+    border-radius: var(--tactical-radius-md);
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.tactical-alert-success {
+    border-color: var(--tactical-success);
+    background: rgba(0, 255, 136, 0.1);
+    color: var(--tactical-success);
+}
+
+.tactical-alert-danger {
+    border-color: var(--tactical-danger);
+    background: rgba(255, 59, 92, 0.1);
+    color: var(--tactical-danger);
+}
+
+.tactical-alert-warning {
+    border-color: var(--tactical-warning);
+    background: rgba(255, 170, 0, 0.1);
+    color: var(--tactical-warning);
+}
+
+.tactical-alert-info {
+    border-color: var(--tactical-info);
+    background: rgba(0, 170, 255, 0.1);
+    color: var(--tactical-info);
+}
+
+/* ============================================================
+   TACTICAL PROGRESS BARS
+   ============================================================ */
+.tactical-progress {
+    background: var(--tactical-bg-dark);
+    border-radius: var(--tactical-radius-sm);
+    height: 8px;
+    overflow: hidden;
+    border: 1px solid var(--tactical-border);
+}
+
+.tactical-progress-bar {
+    height: 100%;
+    border-radius: var(--tactical-radius-sm);
+    transition: width 0.5s ease;
+    position: relative;
+}
+
+.tactical-progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    animation: tactical-shimmer 2s infinite;
+}
+
+@keyframes tactical-shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.tactical-progress-bar.success {
+    background: var(--tactical-success);
+}
+
+.tactical-progress-bar.danger {
+    background: var(--tactical-danger);
+}
+
+.tactical-progress-bar.warning {
+    background: var(--tactical-warning);
+}
+
+.tactical-progress-bar.info {
+    background: var(--tactical-info);
+}
+
+.tactical-progress-bar.accent {
+    background: var(--tactical-accent);
+}
+
+/* ============================================================
+   TACTICAL FOOTER
+   ============================================================ */
+.tactical-footer {
+    background: linear-gradient(180deg, var(--tactical-bg-dark) 0%, var(--tactical-bg-darkest) 100%);
+    border-top: 1px solid var(--tactical-border);
+    padding: 1rem 0;
+    color: var(--tactical-text-muted);
+    font-size: 0.85rem;
+    position: relative;
+}
+
+.tactical-footer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--tactical-accent-dim), transparent);
+}
+
+/* ============================================================
+   TACTICAL UTILITIES
+   ============================================================ */
+.tactical-glow {
+    box-shadow: var(--tactical-glow-md) var(--tactical-accent-glow);
+}
+
+.tactical-text-accent {
+    color: var(--tactical-accent);
+}
+
+.tactical-text-success {
+    color: var(--tactical-success);
+}
+
+.tactical-text-danger {
+    color: var(--tactical-danger);
+}
+
+.tactical-text-warning {
+    color: var(--tactical-warning);
+}
+
+.tactical-text-muted {
+    color: var(--tactical-text-muted);
+}
+
+.tactical-border-accent {
+    border-color: var(--tactical-border-accent) !important;
+}
+
+.tactical-bg-dark {
+    background: var(--tactical-bg-dark) !important;
+}
+
+.tactical-bg-surface {
+    background: var(--tactical-bg-surface) !important;
+}
+
+/* Scrollbar styling */
+.tactical-theme ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.tactical-theme ::-webkit-scrollbar-track {
+    background: var(--tactical-bg-dark);
+}
+
+.tactical-theme ::-webkit-scrollbar-thumb {
+    background: var(--tactical-bg-elevated);
+    border-radius: 4px;
+}
+
+.tactical-theme ::-webkit-scrollbar-thumb:hover {
+    background: var(--tactical-accent-dim);
+}
+
+/* Selection styling */
+.tactical-theme ::selection {
+    background: var(--tactical-accent);
+    color: var(--tactical-bg-darkest);
+}
+
+/* ============================================================
+   TACTICAL ANIMATIONS
+   ============================================================ */
+@keyframes tactical-scan {
+    0% {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+
+    10% {
+        opacity: 0.5;
+    }
+
+    90% {
+        opacity: 0.5;
+    }
+
+    100% {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+}
+
+@keyframes tactical-blink {
+
+    0%,
+    50%,
+    100% {
+        opacity: 1;
+    }
+
+    25%,
+    75% {
+        opacity: 0.5;
+    }
+}
+
+.tactical-scan-effect::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--tactical-accent), transparent);
+    animation: tactical-scan 4s infinite;
+}
+
+/* ============================================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================================ */
+@media (max-width: 768px) {
+    .tactical-navbar .nav-link {
+        padding: 0.75rem 1rem !important;
+    }
+
+    .tactical-stat-card .stat-value {
+        font-size: 2rem;
+    }
+
+    .tactical-stat-card .stat-icon {
+        font-size: 2rem;
+    }
+}
