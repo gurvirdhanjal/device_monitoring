@@ -231,11 +231,10 @@
                 <td><code>${device.device_ip}</code></td>
                 <td><span class="badge bg-secondary">${device.device_type}</span></td>
                 <td>${device.hostname}</td>
-                <td>
-                    <span class="badge bg-${statusClass}">
-                        <i class="fas ${statusIcon}"></i> ${device.status}
-                    </span>
+                <td class="text-center" title="${device.status}">
+                    <span class="status-indicator ${device.status === 'Online' ? 'status-online' : 'status-offline'}"></span>
                 </td>
+
                 <td>${latencyText}</td>
                 <td><small class="text-muted">${lastCheck}</small></td>
                 <td>

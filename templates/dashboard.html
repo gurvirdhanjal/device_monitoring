@@ -1,541 +1,353 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Device Monitoring{% endblock %}
+{% block title %}Tactical Dashboard{% endblock %}
 
 {% block extra_css %}
 <style>
-    /* Dashboard-specific tactical styles */
-    .dashboard-header h1 {
-        font-family: 'Orbitron', monospace;
-        font-size: 2rem;
-        font-weight: 700;
-        letter-spacing: 2px;
-        margin-bottom: 0.5rem;
-        background: linear-gradient(90deg, #00ffc8, #00d4aa);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+    /* Smooth tab transitions for Network Intelligence */
+    .tab-content {
+        opacity: 0;
+        transform: translateY(6px);
+        transition: opacity 220ms ease, transform 220ms ease;
+        will-change: opacity, transform;
     }
 
-    .dashboard-header h1 i {
-        color: #00d4aa;
-        margin-right: 0.75rem;
-        -webkit-text-fill-color: #00d4aa;
+    .tab-content.is-active {
+        opacity: 1;
+        transform: translateY(0);
     }
 
-    .dashboard-header .lead {
-        color: #6a6a80;
-        font-size: 1rem;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-
-    /* Tactical Stat Cards */
-    .stat-card {
-        background: linear-gradient(145deg, #1e1e2a 0%, #252532 100%);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 12px;
-        padding: 0.75rem;
-        position: relative;
-        overflow: hidden;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .stat-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 4px;
-        height: 100%;
-    }
-
-    .stat-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
-    }
-
-    .stat-card.primary::before {
-        background: #00d4aa;
-    }
-
-    .stat-card.success::before {
-        background: #00ff88;
-    }
-
-    .stat-card.warning::before {
-        background: #ffaa00;
-    }
-
-    .stat-card.info::before {
-        background: #00aaff;
-    }
-
-    .stat-card:hover.primary {
-        box-shadow: 0 8px 30px rgba(0, 212, 170, 0.2);
-    }
-
-    .stat-card:hover.success {
-        box-shadow: 0 8px 30px rgba(0, 255, 136, 0.2);
-    }
-
-    .stat-card:hover.warning {
-        box-shadow: 0 8px 30px rgba(255, 170, 0, 0.2);
-    }
-
-    .stat-card:hover.info {
-        box-shadow: 0 8px 30px rgba(0, 170, 255, 0.2);
-    }
-
-    .stat-value {
-        font-family: 'Orbitron', monospace;
-        font-size: 2rem;
-        font-weight: 700;
-        line-height: 1;
-        margin-bottom: 0.5rem;
-    }
-
-    .stat-card.primary .stat-value {
-        color: #00ffc8;
-    }
-
-    .stat-card.success .stat-value {
-        color: #00ff88;
-    }
-
-    .stat-card.warning .stat-value {
-        color: #ffaa00;
-    }
-
-    .stat-card.info .stat-value {
-        color: #00aaff;
-    }
-
-    .stat-label {
-        color: #6a6a80;
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        font-weight: 600;
-    }
-
-    .stat-icon {
-        font-size: 2rem;
-        opacity: 0.3;
-    }
-
-    .stat-card.primary .stat-icon {
-        color: #00d4aa;
-    }
-
-    .stat-card.success .stat-icon {
-        color: #00ff88;
-    }
-
-    .stat-card.warning .stat-icon {
-        color: #ffaa00;
-    }
-
-    .stat-card.info .stat-icon {
-        color: #00aaff;
-    }
-
-    /* Chart Card */
-    .chart-container {
-        position: relative;
-        height: 250px;
-    }
-
-    /* Quick Actions */
-    .action-btn {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 0.25rem 1rem;
-        margin-bottom: 0.75rem;
-        background: rgba(0, 212, 170, 0.05);
-        border: 1px solid rgba(0, 212, 170, 0.2);
-        border-radius: 8px;
-        color: #b8b8c8;
-        text-decoration: none;
-        text-transform: uppercase;
-        font-weight: 600;
-        font-size: 0.85rem;
-        letter-spacing: 0.5px;
-        transition: all 0.3s ease;
-    }
-
-    .action-btn:hover {
-        background: rgba(0, 212, 170, 0.1);
-        border-color: #00d4aa;
-        color: #00ffc8;
-        transform: translateX(5px);
-    }
-
-    .action-btn i {
-        color: #00d4aa;
-        font-size: 1.1rem;
-        width: 24px;
-    }
-
-    /* Activity Items */
-    .activity-item {
-        padding: 0.75rem;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        transition: all 0.2s ease;
-    }
-
-    .activity-item:hover {
-        background: rgba(0, 212, 170, 0.05);
-    }
-
-    .activity-item:last-child {
-        border-bottom: none;
-    }
-
-    .activity-device {
-        color: #ffffff;
-        font-weight: 600;
-    }
-
-    .activity-details {
-        color: #6a6a80;
-        font-size: 0.85rem;
+    .tab-content.is-leaving {
+        opacity: 0;
+        transform: translateY(6px);
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="row dashboard-header">
-    <div class="col-md-12">
-        <h1><i class="fas fa-tachometer-alt"></i>Dashboard</h1>
-        <p class="lead">System Overview &amp; Quick Actions</p>
-    </div>
-</div>
 
-<div class="row mt-3">
-    <!-- Statistics Cards -->
-    <div class="col-md-3 mb-3">
-        <div class="stat-card primary">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="stat-value">{{ total_devices }}</div>
-                    <div class="stat-label">Total Devices</div>
+<div class="container-fluid tactical-theme">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h4 text-uppercase mb-0" style="letter-spacing: 2px; color: var(--tactical-text-primary);">Network
+                Overview
+            </h2>
+            <div class="tactical-text-muted small mt-1">
+                Last updated: <span id="last-updated-text">Just now</span>
+            </div>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+            <!-- Live Clock -->
+            <div id="live-clock" class="tactical-clock me-2">
+                <span id="clock-date"></span>
+                <span id="clock-time"></span>
+            </div>
+
+            <!-- Connection Status Indicator -->
+            <div id="connection-indicator"></div>
+
+            <!-- Time Range Selector -->
+            <select id="time-range" class="tactical-select form-select-sm" style="width: auto;">
+                <option value="24h">Last 24 Hours</option>
+                <option value="7d">Last 7 Days</option>
+                <option value="30d">Last 30 Days</option>
+            </select>
+
+            <button id="btn-refresh" class="btn tactical-btn-outline btn-sm">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Error Banner -->
+    <div id="global-error" class="alert alert-danger" style="display: none;"></div>
+
+    <!-- ROW 1: Network Health Cards -->
+    <div class="row g-4 mb-4">
+        <!-- Devices Online -->
+        <div class="col-12 col-md-6 col-lg-3">
+            <div class="tactical-stat-card" id="card-devices-online">
+                <div class="stat-label">Devices Online</div>
+                <div class="stat-value" id="val-devices-online">-/-</div>
+                <div class="metric-sub mt-2" id="sub-devices-online">
+                    <span class="text-secondary">Loading...</span>
                 </div>
-                <div class="stat-icon">
-                    <i class="fas fa-server"></i>
+                <i class="fas fa-server stat-icon"></i>
+            </div>
+        </div>
+
+        <!-- Active Alerts -->
+        <div class="col-12 col-md-6 col-lg-3">
+            <div class="tactical-stat-card" id="card-active-alerts">
+                <div class="stat-label">Active Alerts</div>
+                <div class="stat-value" id="val-active-alerts">-</div>
+                <div class="metric-sub mt-2" id="sub-active-alerts">
+                    <span class="text-secondary">Loading...</span>
                 </div>
+                <i class="fas fa-bell stat-icon"></i>
+            </div>
+        </div>
+
+        <!-- Network Performance -->
+        <div class="col-12 col-md-6 col-lg-3">
+            <div class="tactical-stat-card" id="card-network-perf">
+                <div class="stat-label">Performance</div>
+                <div class="stat-value" id="val-latency">- ms</div>
+                <div class="metric-sub mt-2" id="sub-packet-loss">
+                    Loading...
+                </div>
+                <i class="fas fa-network-wired stat-icon"></i>
+            </div>
+        </div>
+
+        <!-- Availability -->
+        <div class="col-12 col-md-6 col-lg-3">
+            <div class="tactical-stat-card" id="card-network-avail">
+                <div class="stat-label">Availability (24h)</div>
+                <div class="stat-value" id="val-availability">-%</div>
+                <!-- Sparkline Container -->
+                <div style="height: 40px; position: relative; margin-top: 10px;">
+                    <canvas id="chart-availability-spark"></canvas>
+                </div>
+                <i class="fas fa-chart-line stat-icon"></i>
             </div>
         </div>
     </div>
 
-    <div class="col-md-3 mb-3">
-        <div class="stat-card success">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="stat-value" id="onlineCount">0</div>
-                    <div class="stat-label">Online</div>
+    <!-- ROW 2: Tabs Section -->
+    <div class="row g-4 mb-4">
+
+        <!-- Main Tabbed Content -->
+        <div class="col-lg-8">
+            <div class="tactical-card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-project-diagram"></i> Network Intelligence</span>
+                    <div class="tabs">
+                        <button class="tactical-tab active" data-target="tab-latency">Latency</button>
+                        <button class="tactical-tab" data-target="tab-loss">Loss</button>
+                        <button class="tactical-tab" data-target="tab-alerts">Alerts</button>
+                        <button class="tactical-tab" data-target="tab-inventory-list">Inventory</button>
+                        <button class="tactical-tab" data-target="tab-discovery">Discovery</button>
+                    </div>
                 </div>
-                <div class="stat-icon">
-                    <i class="fas fa-wifi"></i>
+
+                <div class="card-body p-0">
+                    <!-- Tab Content: Latency -->
+                    <div id="tab-latency" class="tab-content" style="display: block;">
+                        <table class="tactical-table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Device</th>
+                                    <th>Latency</th>
+                                    <th class="d-none d-md-table-cell">IP</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-top-latency-body">
+                                <tr>
+                                    <td colspan="3" class="text-center text-secondary p-3">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Tab Content: Packet Loss -->
+                    <div id="tab-loss" class="tab-content" style="display: none;">
+                        <table class="tactical-table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Device</th>
+                                    <th>Loss %</th>
+                                    <th class="d-none d-md-table-cell">IP</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-top-loss-body">
+                                <tr>
+                                    <td colspan="3" class="text-center text-secondary p-3">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Tab Content: Recent Alerts -->
+                    <div id="tab-alerts" class="tab-content" style="display: none;">
+                        <table class="tactical-table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Sev</th>
+                                    <th>Message</th>
+                                    <th class="d-none d-md-table-cell">Time</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-recent-alerts-body">
+                                <tr>
+                                    <td colspan="3" class="text-center text-secondary p-3">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Tab Content: Device Inventory -->
+                    <div id="tab-inventory-list" class="tab-content" style="display: none;">
+                        <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                            <table class="tactical-table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px;">
+                                            <div class="form-check d-flex justify-content-center">
+                                                <input class="form-check-input" type="checkbox"
+                                                    id="inventory-select-all">
+                                            </div>
+                                        </th>
+                                        <th>Name</th>
+                                        <th>Brand</th>
+                                        <th>Tier</th>
+                                        <th>IP</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-inventory-body">
+                                    <tr>
+                                        <td colspan="5" class="text-center p-3">Loading Inventory...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Tab Content: Network Discovery -->
+                    <div id="tab-discovery" class="tab-content" style="display: none;">
+                        <div class="p-4">
+                            <h5 class="tactical-text-primary mb-3"><i class="fas fa-search-location"></i> Recursive
+                                Switch Discovery</h5>
+                            <p class="small tactical-text-muted">Enter a seed IP to start crawling switch neighbors via
+                                LLDP/CDP.</p>
+                            <div class="input-group mb-3" style="max-width: 450px;">
+                                <input type="text" id="seed-ip" class="form-control tactical-input"
+                                    placeholder="e.g. 192.168.1.1">
+                                <button class="btn btn-primary" id="btn-start-discovery">Start Mapping</button>
+                            </div>
+                            <div id="discovery-status" class="small mt-2 p-2 rounded"
+                                style="background: rgba(255,255,255,0.05); display: none;"></div>
+
+                            <div id="discovery-results" class="mt-3" style="display: none;">
+                                <div class="row g-3">
+                                    <div class="col-lg-6">
+                                        <div class="tactical-card">
+                                            <div class="card-header">
+                                                <i class="fas fa-project-diagram"></i> Switches Found
+                                            </div>
+                                            <div class="card-body p-0">
+                                                <div class="table-responsive"
+                                                    style="max-height: 260px; overflow-y: auto;">
+                                                    <table class="table tactical-table table-hover mb-0">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Switch IP</th>
+                                                                <th>Neighbors</th>
+                                                                <th>Devices</th>
+                                                                <th>Errors</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody id="discovery-switches-body">
+                                                            <tr>
+                                                                <td colspan="4" class="text-center p-3">No results
+                                                                    yet.</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-6">
+                                        <div class="tactical-card">
+                                            <div class="card-header">
+                                                <i class="fas fa-sitemap"></i> Devices Found
+                                            </div>
+                                            <div class="card-body p-0">
+                                                <div class="table-responsive"
+                                                    style="max-height: 260px; overflow-y: auto;">
+                                                    <table class="table tactical-table table-hover mb-0">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Switch IP</th>
+                                                                <th>Device IP</th>
+                                                                <th>MAC</th>
+                                                                <th>Port</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody id="discovery-devices-body">
+                                                            <tr>
+                                                                <td colspan="4" class="text-center p-3">No results
+                                                                    yet.</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="col-md-3 mb-3">
-        <div class="stat-card danger">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="stat-value" id="offlineCount">0</div>
-                    <div class="stat-label">Offline</div>
+        <!-- Inventory Stats / Distribution -->
+        <div class="col-lg-4">
+            <div class="tactical-card h-100">
+                <div class="card-header">
+                    <i class="fas fa-boxes"></i> Inventory Breakdown
                 </div>
-                <div class="stat-icon">
-                    <i class="fas fa-power-off"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-3 mb-3">
-        <div class="stat-card info">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="stat-value" id="uptimePercent">0%</div>
-                    <div class="stat-label">Uptime (Avg)</div>
-                </div>
-                <div class="stat-icon">
-                    <i class="fas fa-percentage"></i>
+                <div class="card-body">
+                    <div style="height: 250px; position: relative;">
+                        <canvas id="chart-inventory"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-</div>
 
-<div class="row mt-2">
-    <div class="col-md-5 mb-3">
-        <div class="card">
-            <div class="card-header">
-                <i class="fas fa-chart-pie"></i> Device Status Overview
-            </div>
-            <div class="card-body">
-                <div class="chart-container">
-                    <canvas id="statusChart"></canvas>
+    </div>
+
+    <!-- ROW 3: Real-Time Metrics -->
+    <div class="row g-4 mb-4">
+        <!-- Interface Utilization -->
+        <div class="col-lg-6">
+            <div class="tactical-card h-100">
+                <div class="card-header">
+                    <i class="fas fa-network-wired"></i> Top Interfaces Utilization
+                </div>
+                <div class="card-body">
+                    <div style="height: 250px; position: relative;">
+                        <canvas id="chart-interface-util"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="col-md-7 mb-3">
-        <div class="card">
-            <div class="card-header">
-                <i class="fas fa-bolt"></i> Quick Actions
-            </div>
-            <div class="card-body">
-                <a href="{{ url_for('scanning_bp.scanner_page') }}" class="action-btn">
-                    <i class="fas fa-search"></i>
-                    <span>Network Scanner</span>
-                </a>
-                <a href="{{ url_for('devices_bp.device_management') }}" class="action-btn">
-                    <i class="fas fa-plus"></i>
-                    <span>Add New Device</span>
-                </a>
-                <a href="{{ url_for('monitoring_bp.monitoring_page') }}" class="action-btn">
-                    <i class="fas fa-eye"></i>
-                    <span>Real-time Monitoring</span>
-                </a>
-                <a href="{{ url_for('reports_bp.reports_page') }}" class="action-btn">
-                    <i class="fas fa-chart-bar"></i>
-                    <span>View Reports</span>
-                </a>
-                <a href="{{ url_for('tracking_bp.device_tracking') }}" class="action-btn">
-                    <i class="fas fa-laptop-house"></i>
-                    <span>Device Tracking</span>
-                </a>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-clock"></i> Recent Activity</span>
-                <button class="btn btn-sm btn-outline-secondary" onclick="loadRecentActivity()">
-                    <i class="fas fa-sync-alt"></i> Refresh
-                </button>
-            </div>
-            <div class="card-body p-0">
-                <div id="recentActivity">
-                    <div class="activity-item">
-                        <span class="text-muted">Loading recent activity...</span>
+        <!-- Network I/O Trend -->
+        <div class="col-lg-6">
+            <div class="tactical-card h-100">
+                <div class="card-header">
+                    <i class="fas fa-exchange-alt"></i> Network I/O Trend
+                </div>
+                <div class="card-body">
+                    <div style="height: 250px; position: relative;">
+                        <canvas id="chart-network-io"></canvas>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    // Tactical chart colors
-    const CHART_COLORS = {
-        online: '#00ff88',
-        offline: '#ff3b5c',
-        background: '#1e1e2a',
-        border: 'rgba(0, 212, 170, 0.3)',
-        text: '#b8b8c8'
-    };
-
-    // Load dashboard statistics
-    function loadDashboardStats() {
-        fetch('/api/monitoring/statistics')
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    console.error('Error loading stats:', data.error);
-                    return;
-                }
-
-                document.getElementById('onlineCount').textContent = data.online_count || 0;
-                document.getElementById('offlineCount').textContent = data.offline_count || 0;
-                document.getElementById('uptimePercent').textContent = data.online_percentage ? data.online_percentage.toFixed(1) + '%' : '0%';
-            })
-            .catch(error => {
-                console.error('Error:', error);
-            });
-    }
-
-    // Load status chart with tactical styling
-    function loadStatusChart() {
-        fetch('/api/monitoring/status')
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    console.error('Error loading status:', data.error);
-                    return;
-                }
-
-                const devices = data.devices;
-                const onlineCount = devices.filter(d => d.status === 'Online').length;
-                const offlineCount = devices.filter(d => d.status === 'Offline').length;
-
-                const ctx = document.getElementById('statusChart').getContext('2d');
-
-                if (window.statusChartInstance) {
-                    window.statusChartInstance.destroy();
-                }
-
-                window.statusChartInstance = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Online', 'Offline'],
-                        datasets: [{
-                            data: [onlineCount, offlineCount],
-                            backgroundColor: [CHART_COLORS.online, CHART_COLORS.offline],
-                            borderWidth: 0,
-                            hoverBorderWidth: 3,
-                            hoverBorderColor: '#ffffff'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'bottom',
-                                labels: {
-                                    font: {
-                                        size: 14,
-                                        family: "'Rajdhani', sans-serif",
-                                        weight: '600'
-                                    },
-                                    padding: 20,
-                                    color: CHART_COLORS.text,
-                                    usePointStyle: true,
-                                    pointStyle: 'circle'
-                                }
-                            },
-                            tooltip: {
-                                titleFont: {
-                                    size: 14,
-                                    family: "'Rajdhani', sans-serif",
-                                    weight: '700'
-                                },
-                                bodyFont: {
-                                    size: 13,
-                                    family: "'Rajdhani', sans-serif"
-                                },
-                                padding: 12,
-                                backgroundColor: 'rgba(30, 30, 42, 0.95)',
-                                titleColor: '#00ffc8',
-                                bodyColor: '#b8b8c8',
-                                borderColor: 'rgba(0, 212, 170, 0.3)',
-                                borderWidth: 1,
-                                cornerRadius: 8,
-                                callbacks: {
-                                    label: function (context) {
-                                        const label = context.label || '';
-                                        const value = context.parsed;
-                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                        const percentage = Math.round((value / total) * 100);
-                                        return `${label}: ${value} (${percentage}%)`;
-                                    }
-                                }
-                            }
-                        },
-                        cutout: '65%',
-                        animation: {
-                            animateScale: true,
-                            animateRotate: true
-                        }
-                    }
-                });
-            })
-            .catch(error => {
-                console.error('Error loading chart:', error);
-            });
-    }
-
-    // Load recent activity
-    function loadRecentActivity() {
-        console.log("Fetching recent events...");
-        fetch('/api/monitoring/events?limit=10')
-            .then(response => response.json())
-            .then(data => {
-                const container = document.getElementById('recentActivity');
-
-                if (data.error) {
-                    container.innerHTML = '<div class="activity-item"><span class="text-danger">Error loading activity</span></div>';
-                    return;
-                }
-
-                const events = data.events;
-                let html = '';
-
-                if (!events || events.length === 0) {
-                    html = '<div class="activity-item"><span class="text-muted">No recent activity</span></div>';
-                } else {
-                    events.forEach(event => {
-                        // Map severity to colors/classes
-                        let statusClass = 'primary';
-                        let icon = 'fa-info-circle';
-
-                        if (event.severity === 'CRITICAL') {
-                            statusClass = 'danger'; // Red
-                            icon = 'fa-exclamation-triangle';
-                        } else if (event.severity === 'WARNING') {
-                            statusClass = 'warning'; // Orange
-                            icon = 'fa-exclamation-circle';
-                        } else if (event.severity === 'OK') {
-                            statusClass = 'success'; // Green
-                            icon = 'fa-check-circle';
-                        }
-
-                        // Format timestamp
-                        const ts = new Date(event.timestamp).toLocaleString();
-
-                        html += `
-                    <div class="activity-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="activity-device" style="color: #00ffc8;">${event.metric_name}</div>
-                            <div class="activity-details">
-                                <span class="text-white">${event.device_ip}</span> • ${event.message}
-                            </div>
-                            <div class="activity-details" style="font-size: 0.75rem; opacity: 0.7;">
-                                ${ts}
-                            </div>
-                        </div>
-                        <div class="text-end">
-                            <span class="badge bg-${statusClass}">
-                                <i class="fas ${icon}" style="font-size: 0.8rem; margin-right: 4px;"></i> ${event.severity}
-                            </span>
-                             <div class="activity-details mt-1">${event.value !== null ? event.value : ''}</div>
-                        </div>
-                    </div>
-                    `;
-                    });
-                }
-
-                container.innerHTML = html;
-            })
-            .catch(error => {
-                console.error('Error loading activity:', error);
-                document.getElementById('recentActivity').innerHTML = '<div class="activity-item"><span class="text-muted">Failed to load activity</span></div>';
-            });
-    }
-
-    // Initialize dashboard
-    document.addEventListener('DOMContentLoaded', function () {
-        loadDashboardStats();
-        loadStatusChart();
-        loadRecentActivity();
-
-        // Refresh every 30 seconds
-        setInterval(loadDashboardStats, 30000);
-        setInterval(loadRecentActivity, 30000);
-    });
-</script>
+<script type="module" src="{{ url_for('static', filename='js/dashboard/dashboard.js') }}?v=2.8"></script>
 {% endblock %}

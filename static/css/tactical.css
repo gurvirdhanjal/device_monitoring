@@ -1,4 +1,44 @@
 /* ============================================================
+   TACTICAL CLOCK
+   ============================================================ */
+.tactical-clock {
+    font-family: 'Rajdhani', sans-serif;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--tactical-border-accent);
+    border-radius: var(--tactical-radius-md);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    min-width: 140px;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.tactical-clock #clock-date {
+    font-size: 0.75rem;
+    color: var(--tactical-text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    line-height: 1;
+}
+
+.tactical-clock #clock-time {
+    font-size: 1.25rem;
+    color: var(--tactical-accent-bright);
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    margin-top: 2px;
+    line-height: 1;
+    text-shadow: 0 0 10px var(--tactical-accent-glow);
+}
+
+.tactical-clock:hover {
+    border-color: var(--tactical-accent-bright);
+    box-shadow: 0 0 15px var(--tactical-accent-glow);
+}
+
+/* ============================================================
    TACTICAL DARK THEME - Industrial Grade UI Design System
    ============================================================ */
 
@@ -235,13 +275,18 @@ body.tactical-theme {
 }
 
 /* Stat Cards */
+/* Stat Cards */
 .tactical-stat-card {
     background: var(--tactical-bg-card);
     border: 1px solid var(--tactical-border);
     border-radius: var(--tactical-radius-lg);
-    padding: 1.25rem;
+    padding: 1.5rem;
     position: relative;
     overflow: hidden;
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .tactical-stat-card::before {
@@ -266,34 +311,47 @@ body.tactical-theme {
     background: var(--tactical-warning);
 }
 
-.tactical-stat-card.info::before {
-    background: var(--tactical-info);
-}
-
 .tactical-stat-card .stat-value {
-    font-size: 2rem;
+    font-size: 3.5rem;
     font-weight: 700;
-    font-family: 'Orbitron', monospace;
+    font-family: 'Rajdhani', sans-serif;
     color: var(--tactical-text-primary);
     line-height: 1;
     margin-bottom: 0.5rem;
+    margin-top: 0.25rem;
 }
 
 .tactical-stat-card .stat-label {
     color: var(--tactical-text-muted);
-    font-size: 0.85rem;
+    font-size: 1.1rem;
     text-transform: uppercase;
     letter-spacing: 1px;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+    order: -1;
+}
+
+.tactical-stat-card .stat-subinfo {
+    font-size: 0.95rem;
+    color: var(--tactical-text-dim);
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    line-height: 1.4;
 }
 
 .tactical-stat-card .stat-icon {
     position: absolute;
-    right: 1.5rem;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 2.5rem;
+    right: 1.25rem;
+    top: 1.25rem;
+    transform: none;
+    font-size: 1.5rem;
     color: var(--tactical-accent);
-    opacity: 0.2;
+    opacity: 0.8;
+    background: rgba(0, 212, 170, 0.1);
+    padding: 0.5rem;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 212, 170, 0.2);
+    box-shadow: 0 0 15px rgba(0, 212, 170, 0.1);
 }
 
 /* ============================================================
@@ -344,8 +402,71 @@ body.tactical-theme {
 .tactical-btn-secondary {
     background: transparent;
     border-color: var(--tactical-text-muted);
-    color: var(--tactical-text-secondary);
+    color: var(--tactical-text-muted);
 }
+
+.tactical-btn-secondary:hover {
+    border-color: var(--tactical-text-primary);
+    color: var(--tactical-text-primary);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.tactical-btn-outline {
+    background: transparent;
+    border: 1px solid var(--tactical-border);
+    color: var(--tactical-text-muted);
+}
+
+.tactical-btn-outline:hover,
+.tactical-btn-outline.active {
+    border-color: var(--tactical-accent);
+    color: var(--tactical-accent);
+    background: rgba(0, 212, 170, 0.05);
+    box-shadow: 0 0 10px rgba(0, 212, 170, 0.1);
+}
+
+/* ============================================================
+   TACTICAL TABS (Underline Style)
+   ============================================================ */
+.tactical-tab {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    color: var(--tactical-text-muted);
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 0.5rem 1rem;
+    transition: all 0.3s ease;
+}
+
+.tactical-tab:hover {
+    color: var(--tactical-text-primary);
+}
+
+.tactical-tab.active {
+    color: var(--tactical-accent);
+    border-bottom-color: var(--tactical-accent);
+    background: linear-gradient(to top, rgba(0, 212, 170, 0.1), transparent);
+}
+
+.tactical-btn-outline {
+    background: transparent;
+    border: 1px solid var(--tactical-border);
+    color: var(--tactical-text-muted);
+}
+
+.tactical-btn-outline:hover,
+.tactical-btn-outline.active {
+    border-color: var(--tactical-accent);
+    color: var(--tactical-accent);
+    background: rgba(0, 212, 170, 0.05);
+    box-shadow: 0 0 10px rgba(0, 212, 170, 0.1);
+}
+
+
 
 .tactical-btn-secondary:hover {
     border-color: var(--tactical-accent);
@@ -902,4 +1023,54 @@ body.tactical-theme {
     .tactical-stat-card .stat-icon {
         font-size: 2rem;
     }
+}
+
+/* ============================================================
+   GLOBAL STATUS PULSE (Refined)
+   ============================================================ */
+@keyframes heartbeat {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.3);
+        opacity: 0.7;
+    }
+}
+
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.status-online {
+    background-color: #28a745;
+    box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+    animation: heartbeat 2s infinite ease-in-out;
+}
+
+.status-online i,
+.status-offline i,
+.status-checking i {
+    display: none;
+}
+
+.status-offline {
+    background-color: #dc3545;
+    box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+    animation: heartbeat 3s infinite ease-in-out;
+}
+
+.status-checking {
+    background-color: #6c757d;
+    width: 10px;
+    height: 10px;
 }

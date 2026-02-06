@@ -1,0 +1,45 @@
+/**
+ * API Wrapper for Dashboard
+ */
+
+// Simple fetch wrapper with error handling
+async function fetchAPI(endpoint) {
+    try {
+        const response = await fetch(endpoint, { credentials: 'same-origin' });
+        if (!response.ok) {
+            throw new Error(`API Error: ${response.status} ${response.statusText}`);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error(`Failed to fetch ${endpoint}:`, error);
+        throw error;
+    }
+}
+
+export async function fetchSummary() {
+    return fetchAPI('/api/dashboard/summary');
+}
+
+export async function fetchTopProblems() {
+    return fetchAPI('/api/dashboard/top-problems');
+}
+
+export async function fetchTrends(range = '24h') {
+    return fetchAPI(`/api/dashboard/trends?range=${range}`);
+}
+
+export async function fetchAlerts(activeOnly = true, limit = 50) {
+    return fetchAPI(`/api/dashboard/alerts?active=${activeOnly}&limit=${limit}`);
+}
+
+export async function fetchInventory() {
+    return fetchAPI('/api/dashboard/inventory');
+}
+
+export async function fetchRealTimeInterfaces() {
+    return fetchAPI('/api/dashboard/realtime/interfaces');
+}
+
+export async function fetchRealTimeIO() {
+    return fetchAPI('/api/dashboard/realtime/network-io');
+}

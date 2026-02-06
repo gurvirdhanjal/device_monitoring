@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, current_app
-from services.discovery import get_discovery_service
+from services.discovery_service import get_discovery_service
 from models.scan_history import NetworkScan
 from extensions import db
 from datetime import datetime
@@ -168,7 +168,7 @@ def ping_device():
     asyncio.set_event_loop(loop)
 
     try:
-        status, latency = loop.run_until_complete(
+        status, latency, packet_loss = loop.run_until_complete(
             service.scanner.ping_device(ip, timeout=PING_TIMEOUT)
         )
         
@@ -177,13 +177,15 @@ def ping_device():
             return jsonify({
                 'success': True,
                 'latency': latency,
+                'packet_loss': packet_loss,  # NEW: Include packet loss
                 'ttl': 64,  # Standard TTL value
                 'ip_address': ip
             })
         else:
             return jsonify({
                 'success': False,
-                'message': 'Host is offline or unreachable'
+                'message': 'Host is offline or unreachable',
+                'packet_loss': packet_loss
             })
     except Exception as e:
         return jsonify({
@@ -276,3 +278,64 @@ def add_to_inventory():
         db.session.rollback()
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
+@scanning_bp.route('/api/discovery/start', methods=['POST'])
+def start_discovery():
+    if 'logged_in' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    from flask import current_app
+    from services.snmp_discovery_service import get_snmp_discovery_service
+    
+    data = request.json or {}
+    seed_ip = data.get('seed_ip')
+    if not seed_ip:
+        return jsonify({"error": "seed_ip is required"}), 400
+
+    # Start SNMP-based discovery in background thread
+    app = current_app._get_current_object()
+    svc = get_snmp_discovery_service()
+
+    job_id = svc.start_job(
+        seed_ip=seed_ip,
+        app=app,
+        community=data.get('community') or current_app.config.get('SNMP_COMMUNITY', 'public'),
+        version=data.get('version') or current_app.config.get('SNMP_VERSION', '2c'),
+        max_depth=int(data.get('max_depth', 3)),
+        max_switches=int(data.get('max_switches', 50)),
+        persist=bool(data.get('persist', True)),
+        timeout=int(data.get('timeout', 2)),
+        retries=int(data.get('retries', 1)),
+        username=session.get('username', 'system')
+    )
+
+    return jsonify({
+        "success": True,
+        "message": "Discovery started in background",
+        "job_id": job_id
+    })
+
+
+@scanning_bp.route('/api/discovery/status/<job_id>')
+def discovery_status(job_id):
+    if 'logged_in' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    from services.snmp_discovery_service import get_snmp_discovery_service
+
+    svc = get_snmp_discovery_service()
+    job = svc.get_job(job_id)
+    if not job:
+        return jsonify({'error': 'Job not found'}), 404
+
+    return jsonify(job)
+
+
+@scanning_bp.route('/api/discovery/active')
+def discovery_active():
+    if 'logged_in' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    from services.snmp_discovery_service import get_snmp_discovery_service
+    svc = get_snmp_discovery_service()
+    job = svc.get_active_job(session.get('username', 'system'))
+    return jsonify({'active_job': job})

@@ -30,9 +30,9 @@ def dashboard():
         
     except Exception as e:
         print(f"DEBUG: Dashboard stats error: {e}")
-        # Fallback to DB counts
+        # Fallback to DB counts (show all devices)
         total_devices = Device.query.count()
-        monitored_devices = Device.query.filter_by(is_monitored=True).count()
+        monitored_devices = total_devices  # Count all devices, not just monitored
     
     return render_template('dashboard.html', 
                          total_devices=total_devices,
@@ -57,6 +57,11 @@ def get_monitoring_status():
     status_filter = request.args.get('status')
     
     query = Device.query
+    device_ip = request.args.get('device_ip')
+    
+    if device_ip:
+        query = query.filter_by(device_ip=device_ip)
+    
     if device_type and device_type != 'all':
         query = query.filter_by(device_type=device_type)
     
@@ -79,7 +84,7 @@ def get_monitoring_status():
     async def fetch_device_status(device):
         # ... existing fetch_device_status logic ...
         try:
-            status, latency = await monitor.scanner.ping_device(device.device_ip)
+            status, latency, _packet_loss = await monitor.scanner.ping_device(device.device_ip)
             
             # Fallback: Check Tactical Agent Port (5002) if Ping fails
             if status == 'Offline': 
@@ -107,6 +112,7 @@ def get_monitoring_status():
                 "is_monitored": device.is_monitored,
                 "status": status,
                 "latency": latency,
+                "packet_loss": _packet_loss if '_packet_loss' in locals() else 0,
             }
         except Exception as e:
             print(f"DEBUG: Error checking {device.device_ip}: {e}")
@@ -132,6 +138,42 @@ def get_monitoring_status():
     try:
         devices_data = asyncio.run(fetch_all_statuses())
         
+        # SAVE HISTORY TO DB (Synchronize Live View with Dashboard Stats)
+        try:
+            from extensions import db
+            from models.scan_history import DeviceScanHistory
+            from datetime import datetime
+
+            history_entries = []
+            for d in devices_data:
+                # Basic validation
+                if not d.get('device_ip'): continue
+                
+                # Determine packet loss safely
+                pkt_loss = d.get('packet_loss', 0)
+                if pkt_loss is None: pkt_loss = 0
+                
+                # Create history record
+                entry = DeviceScanHistory(
+                    device_ip=d['device_ip'],
+                    device_name=d.get('device_name'),
+                    status=d.get('status', 'Unknown'),
+                    ping_time_ms=d.get('latency'),
+                    packet_loss=pkt_loss,
+                    scan_timestamp=datetime.utcnow(),
+                    scan_type='live_check'
+                )
+                history_entries.append(entry)
+            
+            if history_entries:
+                db.session.add_all(history_entries)
+                db.session.commit()
+                print(f"DEBUG: Saved {len(history_entries)} scan records to history")
+
+        except Exception as db_e:
+            print(f"DEBUG: Error saving history in monitoring endpoint: {db_e}")
+            db.session.rollback()
+
         # Apply status filter if provided
         if status_filter and status_filter != 'all':
             devices_data = [device for device in devices_data if device['status'] == status_filter]
@@ -173,7 +215,7 @@ def get_monitoring_statistics():
         async def check_device_online(device):
             try:
                 # 1. Try Standard Ping
-                status, latency = await monitor.scanner.ping_device(device.device_ip)
+                status, latency, _packet_loss = await monitor.scanner.ping_device(device.device_ip)
                 if status == 'Online':
                     return True
                 

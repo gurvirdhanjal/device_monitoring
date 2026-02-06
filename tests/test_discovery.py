@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 import json
-from services.discovery import DiscoveryService
+from services.discovery_service import DiscoveryService
 from flask import Flask, session
 from routes.devices import devices_bp
 from extensions import db

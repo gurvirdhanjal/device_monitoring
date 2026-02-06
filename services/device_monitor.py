@@ -52,8 +52,8 @@ class DeviceMonitor:
                 from models.scan_history import DeviceScanHistory
                 from metrics.normalizer import MetricNormalizer
                 
-                # Get all monitored devices
-                devices = Device.query.filter_by(is_monitored=True).all()
+                # Get all devices (User requested to monitor everything)
+                devices = Device.query.all()
                 total_loaded = 0
                 
                 for device in devices:
@@ -84,14 +84,15 @@ class DeviceMonitor:
         from models.scan_history import DeviceScanHistory
         from metrics.normalizer import MetricNormalizer
         
-        devices = Device.query.filter_by(is_monitored=True).all()
+        # Monitor ALL devices as requested
+        devices = Device.query.all()
         
         print(f"Monitoring {len(devices)} stored devices...")
         
         scan_results = []
         
         for device in devices:
-            status, latency = await self.scanner.ping_device(device.device_ip)
+            status, latency, packet_loss = await self.scanner.ping_device(device.device_ip)
             
             # Save scan history
             scan_record = DeviceScanHistory(
@@ -99,19 +100,34 @@ class DeviceMonitor:
                 device_name=device.device_name,
                 ping_time_ms=latency,
                 status=status,
-                scan_type='scheduled'
+                scan_type='scheduled',
+                packet_loss=packet_loss  # NEW: Store packet loss
             )
             
-            # Normalize and collect metrics
-            metrics = MetricNormalizer.normalize_ping(device.device_ip, status, latency)
+            # Normalize and collect metrics (now includes packet_loss)
+            metrics = MetricNormalizer.normalize_ping(device.device_ip, status, latency, packet_loss=packet_loss)
             self.collector.add_metrics(metrics)
             
-            # Evaluate Thresholds & Generate Events
-            for metric in metrics:
-                transition = self.evaluator.evaluate(metric)
-                if transition:
-                    print(f"EVENT GENERATED: {transition}")
-                    self.event_manager.add_transition(transition)
+            # Evaluate Alerts (Phase 1A)
+            from services.alert_manager import AlertManager
+            is_online = (status == 'Online')
+            AlertManager.process_scan_result(device, is_online, latency, packet_loss, commit=False)
+
+            # Broadcast real-time SSE event (Legacy connection for now)
+            # We can refactor this to be event-driven later
+            if not is_online or (latency and latency > 100) or (packet_loss and packet_loss > 5):
+                 # Simple broadcast for UI updates if impactful change
+                 try:
+                    from services.sse_broadcaster import broadcast_event
+                    broadcast_event('device_update', {
+                        'device_id': device.device_id,
+                        'ip': device.device_ip,
+                        'status': status,
+                        'latency': latency,
+                        'packet_loss': packet_loss
+                    })
+                 except Exception as e:
+                    print(f"SSE Error: {e}")
 
             db.session.add(scan_record)
             scan_results.append({
@@ -119,22 +135,30 @@ class DeviceMonitor:
                 'device_ip': device.device_ip,
                 'status': status,
                 'latency': latency,
+                'packet_loss': packet_loss,  # NEW: Include in results
                 'timestamp': datetime.utcnow()
             })
         
         db.session.commit()
         return scan_results
     
-    def get_device_statistics(self, device_ip, hours=24):
-        """Get statistics for a device over specified hours"""
+    def get_device_statistics(self, device_ip, hours=24, start_time=None, end_time=None):
+        """Get statistics for a device over specified hours OR time range"""
         from models.scan_history import DeviceScanHistory
         
-        cutoff_time = datetime.utcnow() - timedelta(hours=hours)
-        
-        scans = DeviceScanHistory.query.filter(
-            DeviceScanHistory.device_ip == device_ip,
-            DeviceScanHistory.scan_timestamp >= cutoff_time
-        ).order_by(DeviceScanHistory.scan_timestamp).all()
+        if start_time and end_time:
+            # Use explicit time range
+            scans = DeviceScanHistory.query.filter(
+                DeviceScanHistory.device_ip == device_ip,
+                DeviceScanHistory.scan_timestamp.between(start_time, end_time)
+            ).order_by(DeviceScanHistory.scan_timestamp).all()
+        else:
+            # Use relative hours
+            cutoff_time = datetime.utcnow() - timedelta(hours=hours)
+            scans = DeviceScanHistory.query.filter(
+                DeviceScanHistory.device_ip == device_ip,
+                DeviceScanHistory.scan_timestamp >= cutoff_time
+            ).order_by(DeviceScanHistory.scan_timestamp).all()
         
         if not scans:
             return None
@@ -143,6 +167,7 @@ class DeviceMonitor:
         offline_scans = [scan for scan in scans if scan.status == 'Offline']
         
         latencies = [scan.ping_time_ms for scan in online_scans if scan.ping_time_ms is not None]
+        packet_losses = [scan.packet_loss for scan in scans if scan.packet_loss is not None]
         
         stats = {
             'total_scans': len(scans),
@@ -159,6 +184,12 @@ class DeviceMonitor:
                 'max_latency': max(latencies),
                 'latency_std_dev': statistics.stdev(latencies) if len(latencies) > 1 else 0
             })
+            
+        if packet_losses:
+            stats.update({
+                'avg_packet_loss': statistics.mean(packet_losses),
+                'max_packet_loss': max(packet_losses)
+            })
         
         return stats
     
@@ -173,26 +204,26 @@ class DeviceMonitor:
         start_time = datetime.combine(date, datetime.min.time())
         end_time = datetime.combine(date, datetime.max.time())
         
-        devices = Device.query.filter_by(is_monitored=True).all()
+        devices = Device.query.all()
         report = {
-            'date': date,
+            'date': date.isoformat(),
             'total_monitored_devices': len(devices),
             'devices': []
         }
         
         for device in devices:
-            daily_scans = DeviceScanHistory.query.filter(
-                DeviceScanHistory.device_ip == device.device_ip,
-                DeviceScanHistory.scan_timestamp.between(start_time, end_time)
-            ).all()
+            # Pass strict time range to get stats for the specific day
+            stats = self.get_device_statistics(
+                device.device_ip, 
+                start_time=start_time, 
+                end_time=end_time
+            )
             
-            if daily_scans:
-                stats = self.get_device_statistics(device.device_ip, 24)
-                if stats:
-                    report['devices'].append({
-                        'device_name': device.device_name,
-                        'device_ip': device.device_ip,
-                        'stats': stats
-                    })
+            if stats:
+                report['devices'].append({
+                    'device_name': device.device_name,
+                    'device_ip': device.device_ip,
+                    'stats': stats
+                })
         
         return report

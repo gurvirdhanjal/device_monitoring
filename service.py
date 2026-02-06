@@ -1,5 +1,6 @@
 # enhanced_tracker_client.py
 import os
+import sys
 import psutil
 import platform
 import time
@@ -325,7 +326,14 @@ activity_metrics = {
 }
 
 INACTIVITY_THRESHOLD = 5
-DB_PATH = 'secure_employee_monitor.db'
+
+if getattr(sys, 'frozen', False):
+    # If frozen, save DB next to the executable
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+DB_PATH = os.path.join(BASE_DIR, 'secure_employee_monitor.db')
 
 # ============================================================
 # ENHANCED DATABASE WITH ENCRYPTION

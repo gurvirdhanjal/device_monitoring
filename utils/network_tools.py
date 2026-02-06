@@ -1,5 +1,5 @@
 import socket
-import subprocess
+import socket
 import platform
 from utils.helpers import validate_ip_address
 

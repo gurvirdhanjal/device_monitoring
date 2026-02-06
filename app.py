@@ -10,9 +10,12 @@ from config import Config
 from extensions import db, bcrypt
 
 
-def create_app():
+def create_app(test_config=None):
     app = Flask(__name__)
     app.config.from_object(Config)
+
+    if test_config:
+        app.config.update(test_config)
 
     # ---------------------------
     # Session configuration
@@ -37,17 +40,29 @@ def create_app():
     bcrypt.init_app(app)
 
     # ---------------------------
+    # SQLite Performance Tuning (WAL Mode + Busy Timeout)
+    # ---------------------------
+    from sqlalchemy import event
+    with app.app_context():
+        @event.listens_for(db.engine, "connect")
+        def set_sqlite_pragma(dbapi_connection, connection_record):
+            if app.config['SQLALCHEMY_DATABASE_URI'].startswith("sqlite"):
+                cursor = dbapi_connection.cursor()
+                cursor.execute("PRAGMA journal_mode=WAL")
+                cursor.execute("PRAGMA synchronous=NORMAL")
+                cursor.execute("PRAGMA busy_timeout=30000") # 30s timeout
+                cursor.close()
+
+    # ---------------------------
     # Database setup
     # ---------------------------
     with app.app_context():
-        from models.user import User
-        from models.device import Device
-        from models.scan_history import (
-            DeviceScanHistory,
-            NetworkScan,
-            PortScanResult
+        from models import (
+            User, Device, DashboardEvent, DailyDeviceStats, 
+            DeviceInterface, InterfaceTrafficHistory, DeviceSnmpConfig,
+            SSHProfile, SwitchTopology, TrackedDevice,
+            DeviceScanHistory, NetworkScan, PortScanResult
         )
-        from models.tracked_device import TrackedDevice
 
         db.create_all()
 
@@ -71,10 +86,10 @@ def create_app():
                 )
                 db.session.add(admin_user)
                 db.session.commit()
-                print("✔ Default admin user created.")
+                print("[OK] Default admin user created.")
             except IntegrityError:
                 db.session.rollback()
-                print("⚠ Admin user already exists. Skipping creation.")
+                print("[WARN] Admin user already exists. Skipping creation.")
 
     # ---------------------------
     # Register blueprints
@@ -88,6 +103,12 @@ def create_app():
     from routes.tracking import tracking_bp
     from routes.camera_streaming import camera_bp
     from routes.file_transfer import file_transfer_bp
+    from routes.dashboard import dashboard_bp
+    from routes.snmp import snmp_bp
+    from routes.service_checks import service_checks_bp
+    from routes.maintenance import maintenance_bp
+    from routes.sse import sse_bp
+    from routes.switch_discovery import switch_discovery_bp
 
     from middleware.session_middleware import setup_auth_middleware
 
@@ -100,6 +121,12 @@ def create_app():
         tracking_bp,
         camera_bp,
         file_transfer_bp,
+        dashboard_bp,
+        snmp_bp,
+        service_checks_bp,
+        maintenance_bp,
+        sse_bp,
+        switch_discovery_bp,
     ]
 
     for bp in protected_blueprints:
@@ -129,12 +156,14 @@ if __name__ == "__main__":
     try:
         app = create_app()
         scheduler = MonitoringScheduler(app)
+        from services.interface_poller import interface_poller
         
         print("Starting Device Monitoring System...")
         print("Access URL: http://localhost:5001")
         print("Default admin: admin / admin123")
 
         scheduler.start_scheduled_monitoring()
+        interface_poller.start_polling(app)
 
         threading.Timer(2.0, open_browser).start()
 
@@ -143,7 +172,7 @@ if __name__ == "__main__":
         monitor.hydrate_collector(app)
 
         app.run(
-            host="127.0.0.1",
+            host="0.0.0.0",
             port=5001,
             debug=False,          # ❗ NEVER TRUE IN EXE
             use_reloader=False
@@ -157,3 +186,5 @@ if __name__ == "__main__":
         if 'scheduler' in locals():
             scheduler.stop_scheduled_monitoring()
             print("Scheduler stopped.")
+        if 'interface_poller' in locals():
+            interface_poller.stop_polling()

@@ -13,6 +13,7 @@ import json
 import urllib.request
 import struct
 import random
+import time
 
 class NetworkScanner:
     """
@@ -295,7 +296,7 @@ class NetworkScanner:
             pass
         return None
 
-    def get_manufacturer(self, mac_address: str) -> str:
+    async def get_manufacturer(self, mac_address: str) -> str:
         """Get manufacturer from MAC address (cached)."""
         try:
             if not mac_address or mac_address == "N/A":
@@ -308,7 +309,11 @@ class NetworkScanner:
             if oui in self._vendor_cache:
                 return self._vendor_cache[oui]
 
+            # mac_vendor_lookup's lookup can be a coroutine in newer versions
             vendor = self.mac_lookup.lookup(mac)
+            if asyncio.iscoroutine(vendor):
+                vendor = await vendor
+                
             vendor = vendor if vendor else "Unknown"
             self._vendor_cache[oui] = vendor
             return vendor
@@ -319,17 +324,66 @@ class NetworkScanner:
     # Ping / Port scan
     # ---------------------------
 
-    async def ping_device(self, ip: str, timeout: int = 2):
-        """Ping a device and return status and latency (ms)."""
+    async def ping_device(self, ip: str, timeout: int = 2, count: int = 4):
+        """
+        Ping a device and return status, latency (ms), and packet loss (%).
+        Safe fallback to system ping if aioping lacks permissions.
+        """
+        successful_pings = 0
+        latencies = []
+        
+        # Check system type once
+        is_windows = platform.system().lower() == "windows"
+        
+        for _ in range(count):
+            try:
+                # Try aioping first (faster, accurate)
+                delay = await aioping.ping(ip, timeout=timeout)
+                latencies.append(delay * 1000)  # Convert to ms
+                successful_pings += 1
+            except (asyncio.TimeoutError, TimeoutError):
+                pass  # Genuine timeout
+            except Exception:
+                # Permission error or other aioping issue -> Fallback to system ping
+                delay = await self._ping_system(ip, timeout, is_windows)
+                if delay is not None:
+                     latencies.append(delay * 1000)
+                     successful_pings += 1
+        
+        packet_loss = ((count - successful_pings) / count) * 100
+        
+        if successful_pings > 0:
+            avg_latency = round(sum(latencies) / len(latencies), 2)
+            return "Online", avg_latency, packet_loss
+        else:
+            return "Offline", None, 100.0
+
+    async def _ping_system(self, ip: str, timeout: int, is_windows: bool) -> float:
+        """Fallback system ping (executes ping command). Returns delay in seconds or None."""
         try:
-            delay = await aioping.ping(ip, timeout=timeout)
-            return "Online", round(delay * 1000, 2)
-        except asyncio.TimeoutError:
-            return "Offline", None
-        except TimeoutError:
-            return "Offline", None
+            param = '-n' if is_windows else '-c'
+            wait_param = '-w' if is_windows else '-W'
+            # Windows -w is milliseconds, Linux -W is seconds
+            wait_value = str(int(timeout * 1000)) if is_windows else str(timeout)
+            
+            # Simple ping, 1 packet
+            cmd = ['ping', param, '1', wait_param, wait_value, ip]
+            
+            start = time.time()
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL
+            )
+            await proc.wait()
+            end = time.time()
+            
+            if proc.returncode == 0:
+                # Note: This latency includes process overhead, but verifies status.
+                return max(0.001, end - start) 
+            return None
         except Exception:
-            return "Offline", None
+            return None
 
     async def scan_ports(self, ip: str, ports=None):
         """Scan ports on a device (concurrent with timeouts)."""
@@ -425,12 +479,13 @@ class NetworkScanner:
     async def scan_single_device(self, ip: str):
         """Comprehensive scan of a single device (fast + safe)."""
         try:
-            status, latency = await self.ping_device(ip, timeout=self.timeout)
+            status, latency, packet_loss = await self.ping_device(ip, timeout=self.timeout)
 
             device_info = {
                 "ip": ip,
                 "status": status,
                 "latency": latency,
+                "packet_loss": packet_loss,  # NEW: Include packet loss
                 "hostname": "Unknown",
                 "mac": "N/A",
                 "manufacturer": "Unknown",
@@ -448,8 +503,7 @@ class NetworkScanner:
 
             mac_address, hostname = await asyncio.gather(mac_f, host_f)
 
-            man_f = loop.run_in_executor(self._executor, self.get_manufacturer, mac_address)
-            manufacturer = await man_f
+            manufacturer = await self.get_manufacturer(mac_address)
 
             device_info.update({
                 "hostname": hostname or "Unknown",
@@ -457,7 +511,7 @@ class NetworkScanner:
                 "manufacturer": manufacturer or "Unknown"
             })
 
-            # Check for Tactical Agent on port 5002
+            # Check for Tactical Agent
             agent_info = await self.check_tactical_agent(ip)
             if agent_info:
                 device_info.update({
@@ -468,9 +522,54 @@ class NetworkScanner:
                     "os": agent_info.get("os"),
                     "is_agent": True
                 })
+            else:
+                # Port scan enabled for device classification (provides 15% classification weight)
+                device_info["open_ports"] = await self.scan_ports(ip)
 
-            # Optional: port scan is expensive; keep disabled unless you enable intentionally
-            # device_info["open_ports"] = await self.scan_ports(ip)
+                # Run Classification Engine if not agent
+                # (Agent devices are trusted as "Tactical Agent" or specific OS)
+                try:
+                    from services.device_classifier import DeviceClassifier, DeviceSignals
+                    
+                    # Extract port numbers from scan results for classifier
+                    open_ports_list = device_info.get("open_ports", [])
+                    port_numbers = [p["port"] for p in open_ports_list if isinstance(p, dict) and "port" in p]
+                    
+                    classifier = DeviceClassifier()
+                    signals = DeviceSignals(
+                        ip_address=ip,
+                        mac_address=device_info.get("mac"),
+                        hostname=device_info.get("hostname"),
+                        open_ports=port_numbers,
+                        manufacturer=device_info.get("manufacturer")
+                        # Add SNMP here if gathered
+                    )
+                    
+                    classification = classifier.classify(signals)
+                    
+                    device_info.update({
+                        "device_type": classification.device_type.value,
+                        "confidence_score": classification.score,
+                        "classification_confidence": classification.confidence.value,
+                        "classification_details": classification.to_dict()
+                    })
+
+                    # Broadcast real-time classification update
+                    try:
+                        from services.sse_broadcaster import broadcast_event
+                        # Only broadcast if confidence is medium or high to reduce noise
+                        if classification.score >= 25:
+                            broadcast_event('classification_update', {
+                                'ip_address': ip,
+                                'classification': classification.to_dict(),
+                                'device': device_info
+                            })
+                    except Exception as b_err:
+                        print(f"Broadcast error: {b_err}")
+
+                except Exception as c_err:
+                    print(f"Classification error for {ip}: {c_err}")
+                    pass
 
             return device_info
 

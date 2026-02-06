@@ -139,6 +139,15 @@ document.addEventListener('DOMContentLoaded', function () {
         bulkAddBtn.addEventListener('click', executeBulkAdd);
     }
 
+    // Event Delegation for Select All (Robust for dynamic content)
+    if (scanResults) {
+        scanResults.addEventListener('change', (e) => {
+            if (e.target && e.target.id === 'selectAllCheckbox') {
+                toggleSelectAll(e);
+            }
+        });
+    }
+
     function startNetworkScan(ipRange) {
         totalDevicesFound = 0;
 
@@ -277,7 +286,6 @@ document.addEventListener('DOMContentLoaded', function () {
                             <th>Status</th>
                             <th>Latency</th>
                             <th>Actions</th>
-                            <th>Connect</th>
                         </tr>
                     </thead>
                     <tbody id="devicesTableBody">
@@ -293,13 +301,7 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>
         `;
 
-        // Use a timeout to ensure element exists before attaching listener
-        setTimeout(() => {
-            const selectAll = document.getElementById('selectAllCheckbox');
-            if (selectAll) {
-                selectAll.addEventListener('change', toggleSelectAll);
-            }
-        }, 100);
+        // Event listener handled by delegation
     }
 
     function toggleSelectAll(e) {
@@ -397,7 +399,6 @@ document.addEventListener('DOMContentLoaded', function () {
         const statusClass = device.status === 'Online' ? 'success' : 'secondary';
         const statusIcon = device.status === 'Online' ? 'fa-wifi' : 'fa-times-circle';
         const latencyText = device.latency ? `${device.latency} ms` : 'N/A';
-        const connectButtons = buildConnectionButtons(device);
 
         const row = document.createElement('tr');
         row.className = 'device-row';
@@ -456,9 +457,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         <i class="fas fa-network-wired"></i>
                     </button>
                 </div>
-            </td>
-            <td class="connect-buttons-cell">
-                ${connectButtons}
             </td>
         `;
 

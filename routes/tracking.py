@@ -18,7 +18,9 @@ import io
 
 tracking_bp = Blueprint('tracking_bp', __name__)
 
-SHARED_API_KEY = "8f42v73054r1749f8g58848be5e6502c"
+# Use centralized config for API key
+from config import Config
+SHARED_API_KEY = Config.API_KEY
 
 def generate_placeholder_image(text="No Feed"):
     """Generate a placeholder image with text"""
@@ -52,16 +54,33 @@ def generate_placeholder_image(text="No Feed"):
 
 class NetworkScanner:
     def __init__(self):
-        self.timeout = 2
+        self.timeout = 0.5  # Reduced from 2s to 0.5s for speed
         self.max_workers = 100
     
     def get_mac_address(self, ip_address):
         """Get MAC address for an IP"""
         try:
+            startupinfo = None
+            creationflags = 0
             if platform.system().lower() == "windows":
-                arp_output = subprocess.check_output(f"arp -a {ip_address}", shell=True).decode('utf-8', errors='ignore')
+                cmd = ["arp", "-a", ip_address]
+                # Stop terminal window from popping up
+                if hasattr(subprocess, 'CREATE_NO_WINDOW'):
+                     creationflags = subprocess.CREATE_NO_WINDOW
+                else:
+                     # Fallback for older python or non-standard envs
+                     startupinfo = subprocess.STARTUPINFO()
+                     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             else:
-                arp_output = subprocess.check_output(f"arp -n {ip_address}", shell=True).decode('utf-8', errors='ignore')
+                cmd = ["arp", "-n", ip_address]
+            
+            # Safe subprocess call with suppression flags
+            arp_output = subprocess.check_output(
+                cmd, 
+                stderr=subprocess.DEVNULL,
+                startupinfo=startupinfo,
+                creationflags=creationflags
+            ).decode('utf-8', errors='ignore')
             
             for line in arp_output.splitlines():
                 if ip_address in line:
@@ -87,29 +106,32 @@ class NetworkScanner:
     def check_tracking_service(self, ip, port=5002):
         """Check if tracking service is running"""
         try:
-            if not self.check_port_open(ip, port):
-                # print(f"[DEBUG] Port {port} closed on {ip}") # Too noisy
-                return None
-            
-            print(f"[DEBUG] Port {port} OPEN on {ip}. Checking identity...")
-            # Check identity endpoint (New Auto-Discovery)
+            # Try identity endpoint first (avoid false negatives from raw port checks)
+            identity_response = None
             try:
                 identity_response = requests.get(
-                    f"http://{ip}:{port}/api/identity", 
+                    f"http://{ip}:{port}/api/identity",
                     timeout=self.timeout
                 )
-                
+            except requests.exceptions.RequestException as e:
+                # Network/timeout/etc. We'll fall back to raw port check below.
+                identity_response = None
+            except Exception as e:
+                print(f"[DEBUG] Identity check exception on {ip}: {e}")
+                identity_response = None
+
+            if identity_response is not None:
                 if identity_response.status_code == 200:
                     identity_data = identity_response.json()
-                    
+
                     # Try to get full stats if authenticated
                     try:
                         stats_response = requests.get(
-                            f"http://{ip}:{port}/api/secure/stats", 
+                            f"http://{ip}:{port}/api/secure/stats",
                             timeout=self.timeout,
                             headers={'X-API-Key': SHARED_API_KEY}
                         )
-                        
+
                         if stats_response.status_code == 200:
                             return {
                                 'status': 'tracking_active',
@@ -118,7 +140,7 @@ class NetworkScanner:
                             }
                     except:
                         pass
-                        
+
                     # If stats failed but identity worked, return identity info
                     return {
                         'status': 'tracking_active', # It IS active, just maybe not authenticated yet
@@ -127,14 +149,19 @@ class NetworkScanner:
                     }
                 else:
                     print(f"[DEBUG] Identity check failed on {ip}: Status {identity_response.status_code}")
-            except Exception as e:
-                print(f"[DEBUG] Identity check exception on {ip}: {e}")
-                pass
+                    return {
+                        'status': 'port_open_no_service',
+                        'data': None
+                    }
 
-            return {
-                'status': 'port_open_no_service',
-                'data': None
-            }
+            # Identity failed (timeout/connection). Do a raw port check to classify.
+            if self.check_port_open(ip, port):
+                return {
+                    'status': 'port_open_no_service',
+                    'data': None
+                }
+
+            return None
         except Exception as e:
             print(f"[DEBUG] check_tracking_service error on {ip}: {e}")
             return None
@@ -142,36 +169,37 @@ class NetworkScanner:
     def scan_single_ip(self, ip):
         """Scan a single IP"""
         try:
-            if self.check_port_open(ip):
-                mac = self.get_mac_address(ip)
-                
-                try:
-                    hostname = socket.gethostbyaddr(ip)[0]
-                except:
-                    hostname = "Unknown"
-                
-                service_info = self.check_tracking_service(ip)
-                
-                device_info = {
-                    'ip': ip,
-                    'port': 5002,
-                    'status': service_info['status'] if service_info else 'port_open_no_service',
-                    'mac_address': mac,
-                    'hostname': hostname,
-                    'system': 'Unknown',
-                    'tracking_data': service_info.get('data') if service_info else None
-                }
+            service_info = self.check_tracking_service(ip)
+            if not service_info:
+                return None
 
-                if service_info and service_info['status'] == 'tracking_active' and service_info['data']:
-                    device_data = service_info['data'].get('device_info', {})
-                    device_info.update({
-                        'hostname': device_data.get('hostname', hostname),
-                        'system': device_data.get('system', device_data.get('os', 'Unknown')),
-                        'mac_address': device_data.get('mac_address', mac)
-                    })
+            # After a successful HTTP/port check, ARP cache is warm—MAC lookup is more reliable.
+            mac = self.get_mac_address(ip)
 
-                return device_info
-            return None
+            try:
+                hostname = socket.gethostbyaddr(ip)[0]
+            except:
+                hostname = "Unknown"
+
+            device_info = {
+                'ip': ip,
+                'port': 5002,
+                'status': service_info.get('status', 'unknown'),
+                'mac_address': mac,
+                'hostname': hostname,
+                'system': 'Unknown',
+                'tracking_data': service_info.get('data')
+            }
+
+            if service_info.get('status') == 'tracking_active' and service_info.get('data'):
+                device_data = service_info['data'].get('device_info', {})
+                device_info.update({
+                    'hostname': device_data.get('hostname', hostname),
+                    'system': device_data.get('system', device_data.get('os', 'Unknown')),
+                    'mac_address': device_data.get('mac_address', mac)
+                })
+
+            return device_info
         except Exception as e:
             return None
     
@@ -184,8 +212,11 @@ class NetworkScanner:
                     if addr.family.name == 'AF_INET':
                         ip = addr.address
                         netmask = addr.netmask
-                        if not ip or ip.startswith("127."):
+                        # We still return the network, but we won't skip 127.0.0.1 during actual scan list gen
+                        if not ip:
                             continue
+                        if ip.startswith("127."):
+                             continue
                         try:
                             network = ipaddress.IPv4Network(f"{ip}/{netmask}", strict=False)
                             return str(network)
@@ -201,14 +232,23 @@ class NetworkScanner:
         local_network = self.get_local_network_ranges()
         print(f"[DEBUG] Tracking Scanner: Scanning network {local_network}", flush=True)
         
-        all_ips = [str(ip) for ip in ipaddress.IPv4Network(local_network, strict=False)]
-        
-        # FORCE ADD USER'S IP FOR DEBUGGING
-        if "172.16.2.113" not in all_ips:
-             print("[DEBUG] Force adding 172.16.2.113 to scan list", flush=True)
-             all_ips.append("172.16.2.113")
+        all_ips = []
+        try:
+            # Add all network IPs
+            all_ips = [str(ip) for ip in ipaddress.IPv4Network(local_network, strict=False)]
+        except Exception as e:
+            print(f"[DEBUG] Error generating IP list: {e}")
 
-        print(f"[DEBUG] Tracking Scanner: Found {len(all_ips)} IPs to scan", flush=True)
+        # ALWAYS ADD LOCALHOST FOR TESTING
+        if "127.0.0.1" not in all_ips:
+            all_ips.append("127.0.0.1")
+        
+        # Add typical local IPs if not present
+        local_ip = socket.gethostbyname(socket.gethostname())
+        if local_ip not in all_ips:
+            all_ips.append(local_ip)
+
+        print(f"[DEBUG] Tracking Scanner: Found {len(all_ips)} IPs to scan. (First 5: {all_ips[:5]})", flush=True)
         
         devices_found = []
         # Use simple loop for debugging if needed, but keeping threads for now
@@ -419,6 +459,9 @@ def device_history(device_id):
 # API ENDPOINTS - REAL TIME TRACKING
 # ============================================================
 
+# Global cache for real-time data
+real_time_data = {}
+
 @tracking_bp.route('/api/tracking/real-time/<mac_address>')
 def api_real_time_tracking(mac_address):
     """Real-time tracking data for device"""
@@ -426,12 +469,35 @@ def api_real_time_tracking(mac_address):
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
     
     try:
+        # Check cache first (CACHE HIT)
+        if mac_address in real_time_data:
+            cached = real_time_data[mac_address]
+            # Valid for 5 seconds (prevents spamming the device)
+            if time.time() - cached['timestamp'] < 5:
+                # If cached status was offline, returning it avoids a timeout wait
+                if cached.get('status') == 'offline':
+                     return jsonify({
+                        'success': False,
+                        'error': 'Device not responding (Cached)',
+                        'device_info': cached.get('device_info')
+                    }), 503
+                
+                return jsonify({
+                    'success': True,
+                    'tracking_data': cached['data'],
+                    'device_info': cached.get('device_info'),
+                    'timestamp': datetime.fromtimestamp(cached['timestamp']).isoformat(),
+                    'cached': True
+                })
+
         device = TrackedDevice.query.filter_by(mac_address=mac_address).first()
         if not device or not device.ip_address:
+            # Cache the failure too
             return jsonify({'success': False, 'error': 'Device not found'}), 404
         
         # Get live data from device
         scanner = NetworkScanner()
+        # Timeout reduced to 0.5s in class init
         service_info = scanner.check_tracking_service(device.ip_address)
         
         if service_info and service_info['status'] == 'tracking_active' and service_info['data']:
@@ -440,9 +506,11 @@ def api_real_time_tracking(mac_address):
             # Update device last seen
             device.last_seen = datetime.utcnow()
             
-            # Store real-time data
+            # FAST WRITE: Update in-memory cache
             real_time_data[mac_address] = {
                 'data': tracking_data,
+                'status': 'online',
+                'device_info': device_to_dict(device),
                 'timestamp': time.time()
             }
             
@@ -459,6 +527,14 @@ def api_real_time_tracking(mac_address):
                 'timestamp': datetime.utcnow().isoformat()
             })
         else:
+             # Cache the OFFLINE status for 5 seconds so we don't keep hitting the timeout
+            real_time_data[mac_address] = {
+                'data': None,
+                'status': 'offline',
+                'device_info': device_to_dict(device),
+                'timestamp': time.time()
+            }
+
             return jsonify({
                 'success': False,
                 'error': 'Device not responding',
@@ -833,8 +909,28 @@ def api_scan_devices():
         for device in devices_found:
             mac = device.get('mac_address', 'Unknown').upper()
             
+            # AUTO-SAVE LOGIC: If tracking is active and device not saved, save it automatically
+            if mac not in saved_macs and mac != 'N/A' and device['status'] == 'tracking_active':
+                try:
+                    new_device = TrackedDevice(
+                        mac_address=mac,
+                        device_name=device.get('hostname', f"Device_{mac[-4:]}"),
+                        employee_name="Auto-Discovered",
+                        hostname=device.get('hostname'),
+                        ip_address=device['ip'],
+                        department="Unassigned",
+                        notes="Auto-discovered by scanner"
+                    )
+                    db.session.add(new_device)
+                    # Update local cache so we don't duplicate if list has dupes
+                    saved_macs[mac] = new_device 
+                    print(f"[AUTO-SAVE] Added new device: {mac} ({device['ip']})")
+                except Exception as e:
+                    print(f"[AUTO-SAVE] Error saving {mac}: {e}")
+
             if mac in saved_macs and mac != 'N/A':
                 saved_device = saved_macs[mac]
+                # Auto-update IP if changed
                 if device['ip'] != saved_device.ip_address:
                     saved_device.ip_address = device['ip']
                     saved_device.last_seen = datetime.utcnow()
@@ -860,8 +956,8 @@ def api_scan_devices():
             
             enhanced_devices.append(device_dict)
         
-        if updated_ips:
-            db.session.commit()
+        # Commit all changes (new devices + IP updates)
+        db.session.commit()
         
         tracking_active = [d for d in enhanced_devices if d['status'] == 'tracking_active']
         port_only = [d for d in enhanced_devices if d['status'] == 'port_open_no_service']

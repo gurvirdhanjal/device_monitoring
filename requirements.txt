@@ -15,3 +15,7 @@ pynput
 Pillow
 cryptography
 pywin32
+
+# SNMP Integration
+pysnmp==4.4.12
+pyasn1==0.4.8

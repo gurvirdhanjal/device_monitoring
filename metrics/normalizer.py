@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 # Standardized Metric Constants
 DEVICE_AVAILABILITY = "device_availability"
 NETWORK_LATENCY_MS = "network_latency_ms"
+PACKET_LOSS_PERCENT = "packet_loss_percent"  # NEW
 OPEN_PORTS_COUNT = "open_ports_count"
 
 @dataclass
@@ -36,7 +37,13 @@ class MetricNormalizer:
     """
     
     @staticmethod
-    def normalize_ping(device_ip: str, status: str, latency_ms: Optional[float], timestamp: Optional[datetime] = None) -> List[Metric]:
+    def normalize_ping(
+        device_ip: str, 
+        status: str, 
+        latency_ms: Optional[float], 
+        timestamp: Optional[datetime] = None,
+        packet_loss: Optional[float] = None  # NEW parameter
+    ) -> List[Metric]:
         """
         Convert ping results into metrics.
         
@@ -45,6 +52,7 @@ class MetricNormalizer:
             status: "Online" or "Offline"
             latency_ms: Ping latency in milliseconds (can be None if offline)
             timestamp: Optional override for metric timestamp
+            packet_loss: Packet loss percentage (0-100)
             
         Returns:
             List of Metric objects
@@ -71,6 +79,10 @@ class MetricNormalizer:
         # 2. Latency Metric (only if available)
         if latency_ms is not None:
             metrics.append(create_metric(NETWORK_LATENCY_MS, float(latency_ms), "ms"))
+        
+        # 3. Packet Loss Metric (NEW)
+        if packet_loss is not None:
+            metrics.append(create_metric(PACKET_LOSS_PERCENT, float(packet_loss), "percent"))
             
         return metrics
 

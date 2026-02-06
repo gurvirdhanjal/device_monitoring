@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify
 from extensions import db
 from services.network_scanner import NetworkScanner
+import asyncio
 
 devices_bp = Blueprint('devices_bp', __name__, url_prefix='')
 scanner = NetworkScanner()
@@ -31,6 +32,10 @@ def device_management():
     if 'delete_id' in request.args:
         device = Device.query.get(request.args.get('delete_id'))
         if device:
+            # Clean up scan history
+            from models.scan_history import DeviceScanHistory
+            DeviceScanHistory.query.filter_by(device_ip=device.device_ip).delete()
+            
             db.session.delete(device)
             db.session.commit()
             print(f"DEBUG: Deleted device {device.device_id}")  # Debug line
@@ -74,13 +79,12 @@ def save_device():
                 rstplink = f"rtsp://{username}:{encoded_password}@{device_ip}:{port}/stream"
 
         # Get network information
-        import asyncio
-        status, latency = asyncio.run(scanner.ping_device(device_ip))
+        status, latency, _packet_loss = asyncio.run(scanner.ping_device(device_ip))
         
         if status == "Online":
             mac_address = scanner.get_mac_address(device_ip)
             hostname = scanner.get_hostname(device_ip)
-            manufacturer = scanner.get_manufacturer(mac_address)
+            manufacturer = asyncio.run(scanner.get_manufacturer(mac_address))
         else:
             mac_address = request.form.get('macaddress', 'N/A')
             hostname = request.form.get('hostname', 'Unknown')
@@ -245,6 +249,10 @@ def bulk_delete_devices():
             try:
                 device = Device.query.get(dev_id)
                 if device:
+                    # Clean up scan history
+                    from models.scan_history import DeviceScanHistory
+                    DeviceScanHistory.query.filter_by(device_ip=device.device_ip).delete()
+                    
                     db.session.delete(device)
                     deleted_count += 1
             except Exception as e:
@@ -261,3 +269,123 @@ def bulk_delete_devices():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+@devices_bp.route('/api/devices/<int:device_id>/update_type', methods=['POST'])
+def update_device_type(device_id):
+    if 'logged_in' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    try:
+        data = request.get_json()
+        new_type = data.get('device_type')
+        
+        if not new_type:
+            return jsonify({'error': 'Missing device_type'}), 400
+            
+        from models.device import Device
+        device = Device.query.get(device_id)
+        if not device:
+            return jsonify({'error': 'Device not found'}), 404
+            
+        # Update device type
+        device.device_type = new_type
+        device.classification_confidence = 'Manual'
+        device.confidence_score = 100
+        
+        db.session.commit()
+        
+        return jsonify({'success': True, 'device_type': new_type})
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@devices_bp.route('/api/devices/reclassify_all', methods=['GET'])
+def reclassify_all():
+    if 'logged_in' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    from models.device import Device
+    from services.device_classifier import DeviceClassifier, DeviceSignals
+    from flask import current_app
+    import os
+
+    # DEBUG: Print DB Path
+    print(f"DEBUG DB URI: {current_app.config.get('SQLALCHEMY_DATABASE_URI')}")
+    try:
+        print(f"DEBUG Instance Path: {current_app.instance_path}")
+    except:
+        pass
+    
+    classifier = DeviceClassifier()
+    devices = Device.query.all()
+    updated_count = 0
+    
+    for device in devices:
+        try:
+            # Parse ports if stored as comma string or similar
+            open_ports = []
+            if device.port and device.port.isdigit():
+                 open_ports.append(int(device.port))
+            
+            # Smart OUI lookup if manufacturer is unknown
+            manufacturer = device.manufacturer
+            if (not manufacturer or manufacturer == 'Unknown' or manufacturer == 'N/A') and device.macaddress and device.macaddress != 'N/A':
+                 try:
+                     # Use the global scanner instance to lookup vendor
+                     manufacturer = asyncio.run(scanner.get_manufacturer(device.macaddress))
+                 except:
+                     pass
+            
+            signals = DeviceSignals(
+                ip_address=device.device_ip,
+                mac_address=device.macaddress,
+                hostname=device.hostname,
+                manufacturer=manufacturer,
+                open_ports=open_ports
+            )
+            
+            result = classifier.classify(signals)
+            
+            # Update device
+            device.device_type = result.device_type.value
+            device.confidence_score = result.score
+            device.classification_confidence = result.confidence.value
+            device.classification_details = result.to_dict()
+            device.manufacturer = manufacturer # Save the looked-up manufacturer
+            
+            updated_count += 1
+        except Exception as e:
+            print(f"Failed to reclassify {device.device_ip}: {e}")
+            
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': f"Reclassified {updated_count} devices.",
+        'db_uri': current_app.config.get('SQLALCHEMY_DATABASE_URI', 'unknown')
+    })
+@devices_bp.route('/api/devices/<int:device_id>', methods=['POST'])
+def update_device(device_id):
+    if 'logged_in' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    from models.device import Device
+    device = Device.query.get_or_404(device_id)
+    data = request.json or {}
+    
+    if 'switch_brand' in data:
+        device.switch_brand = data['switch_brand']
+    if 'device_type' in data:
+        device.device_type = data['device_type']
+    if 'cos_tier' in data:
+        device.cos_tier = data['cos_tier']
+    if 'is_monitored' in data:
+        device.is_monitored = bool(data['is_monitored'])
+    if 'parent_switch_id' in data:
+        device.parent_switch_id = data['parent_switch_id']
+    if 'parent_port_id' in data:
+        device.parent_port_id = data['parent_port_id']
+        
+    db.session.commit()
+    return jsonify({"success": True, "device": device.to_dict()})
